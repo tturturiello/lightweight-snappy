@@ -3,4 +3,4 @@ project(Snappy C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(Snappy main.c)
+add_executable(Snappy main.c IOUtils.c)
