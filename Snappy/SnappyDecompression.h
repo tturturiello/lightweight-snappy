@@ -1,0 +1,8 @@
+//
+// Created by Timothy Turturiello on 30.11.19.
+//
+
+#ifndef SNAPPY_SNAPPYDECOMPRESSION_H
+#define SNAPPY_SNAPPYDECOMPRESSION_H
+
+#endif //SNAPPY_SNAPPYDECOMPRESSION_H
