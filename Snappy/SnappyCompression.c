@@ -14,7 +14,7 @@ int main() {
         fseek(input, 0, SEEK_END);
         int file_size = ftell(input);
         fseek(input, 0, SEEK_SET);
-        parse_to_varint(file_size);
+
         printf("%d\n", file_size);
         while( (fread(&readByte, sizeof(char), 1, input))!=0 ){
             printf("%X ", readByte);
@@ -22,4 +22,6 @@ int main() {
     } else {
         puts("Errore apertura file");
     }
+
+    test_parse_to_varint();
 }
