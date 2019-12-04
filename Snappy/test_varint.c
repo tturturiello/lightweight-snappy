@@ -4,12 +4,6 @@
 
 static int error = 0;
 
-void print_varint(unsigned char varint[], unsigned int len) {
-    for (int i = 0; i < len; ++i) {
-        printf("%X ", varint[i]);
-    }
-}
-
 void test_parse_varint_with(unsigned int n, unsigned char *expexted_result) {
     unsigned char varint[20];
     unsigned int len;

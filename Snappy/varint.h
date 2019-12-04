@@ -1,5 +1,5 @@
-#include <stdio.h>
-
+#ifndef SNAPPY_VARINT_H
+#define SNAPPY_VARINT_H
 
 unsigned int parse_to_varint(unsigned int n, unsigned char *varint);
 void test_parse_to_varint();
@@ -11,3 +11,5 @@ void test_parse_to_varint();
 int varint_to_dim(FILE *source);
 
 int str_varint_to_dim_(unsigned char *varint);
+
+#endif
