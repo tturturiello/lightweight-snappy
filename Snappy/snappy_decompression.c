@@ -3,9 +3,9 @@
 //
 
 #include <stdio.h>
-#include "IOUtils.h"
-#include "SnappyDecompression.h"
-#include "Varint.h"
+#include "IO_utils.h"
+#include "snappy_decompression.h"
+#include "varint.h"
 
 int main() {
     FILE *source;
