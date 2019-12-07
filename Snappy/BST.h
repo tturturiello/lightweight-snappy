@@ -2,6 +2,16 @@
 #define SNAPPY_BST_H
 
 typedef unsigned u32;//TODO da spostare in un header apposito
+
+typedef struct node {
+    u32 bytes;
+    struct node *left,*right;
+}Node;
+
+struct tree {
+    Node *root;
+};
+
 typedef struct tree Tree;
 typedef struct node Node;
 

@@ -3,14 +3,6 @@
 #include "BST.h"
 
 
-typedef struct node {
-    u32 bytes;
-    struct node *left,*right;
-}Node;
-
-struct tree {
-    Node *root;
-};
 
 u32 getBytes(Node * node){
     return node->bytes;
