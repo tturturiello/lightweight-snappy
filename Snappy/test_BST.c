@@ -3,16 +3,16 @@
 
 int main(){
     Tree *tree = create_tree();
-    insert(32, tree);
-    insert(989, tree);
-    insert(12, tree);
-    insert(8, tree);
-    insert(99, tree);
-    insert(-1, tree);
+    insert(32, 0, tree);
+    insert(989, 0, tree);
+    insert(12, 0, tree);
+    insert(8, 0, tree);
+    insert(99, 0, tree);
+    insert(-1, 0, tree);
 
     print_tree_inorder(tree);
 
-    Node *found_node = find(989, tree);
+    Node *found_node = find(97889, tree);
     if(found_node != NULL)
         printf("\n%u", getBytes(found_node));
 }

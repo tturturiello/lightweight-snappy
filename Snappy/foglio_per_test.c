@@ -11,9 +11,10 @@ int main(){
     Tree *hash_table[10];
     for (int i = 0; i < 10; ++i) {
         hash_table[i] = create_tree();
-        insert(rand(), hash_table[i]);
-        insert(rand(), hash_table[i]);
-        insert(rand(), hash_table[i]);
+        printf("%d\n", is_empty(hash_table[i]));
+        insert(rand(), 0, hash_table[i]);
+        insert(rand(), 0, hash_table[i]);
+        insert(rand(), 0, hash_table[i]);
     }
 
     for (int i = 0; i < 10; ++i) {
