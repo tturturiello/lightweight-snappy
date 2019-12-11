@@ -45,6 +45,17 @@ int main() {
     test_parse_varint();
     test_str_varint_to_dim();
 
+
     if(!error)
         puts("Test varint terminato con successo!");
+
+    unsigned char varint[20];
+    unsigned int len;
+    len = parse_to_varint(224, varint);
+    for (int i = 0; i < len; ++i) {
+        printf("%X ", varint[i]);
+    }
+
+    printf("\n%d", str_varint_to_dim_(varint));
+
 }

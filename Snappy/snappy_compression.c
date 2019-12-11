@@ -71,7 +71,7 @@ void write_file_compressed(const char *beginning, char *end) {
     FILE *fcompressed;
     if((fcompressed = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "w") ) != NULL){
         puts("Inizio scrittura------------\n");
-        fwrite(&beginning, sizeof(char), end - beginning, fcompressed);
+        fwrite(beginning, sizeof(char), end - beginning, fcompressed);
     } else {
         printf("Errore scrittura su file\n");
     }
@@ -144,11 +144,25 @@ int main() {
 
     write_file_compressed(out_beginning, output);
 
-    puts("\n");
+    for(int i = 0; out_beginning + i <= output; i++){
+        printf("%X ", *(out_beginning+i));
+    }
+
+    puts("\nFIle compress\n");
+
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "r") )!= NULL){
+        unsigned char byte;
+        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
+            printf("%X ", byte);
+
+        }
+    }
+
+/*    puts("\n");
     for (int i = 0; i < htable_size; ++i) {
         print_tree_inorder(hash_table[i]);
         printf("\n");
-    }
+    }*/
 
 
 }
