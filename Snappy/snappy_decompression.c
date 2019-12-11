@@ -6,14 +6,46 @@
 #include "IO_utils.h"
 #include "snappy_decompression.h"
 #include "varint.h"
-void do_copy(unsigned char* byte_buf, short num_bytes)
+void do_copy(FILE *source, unsigned long len, unsigned int temp_offset, char* supp_buf)
 {
+    unsigned int offset = 0;
+    // prossimi 2 byte
+    fread(&offset, sizeof(char)*2, 1, source);
+    offset+=temp_offset;
+    fseek(source, -3*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
 
+    // leggo a partire dall'offset
+    fseek(source, -(offset * sizeof(char)), 1);
+    fread(supp_buf, sizeof(char) * len, 1, source);
+    fseek(source, sizeof(char)*offset+1, 1); // rewind alla posizione attuale
 }
 
-void do_literal(FILE *source)
-{
 
+// TODO: USARE fflush() per liberare il buffer e scrivere il suo contenuto nel File se pieno.
+// TODO: creare struttura byte_sequence con incormazioni riguardanti: len notag_value, supp_buf
+void do_literal(FILE *source, unsigned long len, unsigned char notag_value, char* supp_buf)
+{
+    unsigned char assoc_bytes; //= (*char) malloc(sizeof(char)); // numero di byte associati
+    assoc_bytes = 0;
+    switch (notag_value) {
+        case 63:
+            assoc_bytes++;
+        case 62:
+            assoc_bytes++;
+        case 61:
+            assoc_bytes++;
+        case 60:
+            assoc_bytes++;
+
+            fread(&len, sizeof(char)*assoc_bytes, 1, source);
+            // TODO: riempire supp_buf dal puntatore attuale
+            len++;
+            fread(supp_buf, sizeof(char) * len, 1, source);
+            break;
+        default: // <60 len = val+1
+            len = notag_value+1;
+            fread(supp_buf, sizeof(char), len, source);
+    }
 }
 
 // ritorna l'offset di lettura del supp_buff
@@ -82,7 +114,7 @@ unsigned long decompressor(char* supp_buf, FILE* source)
         case 2:
             // prossimi 2 byte
             fread(&offset, sizeof(char)*2, 1, source);
-            offset+=temp_offset;
+            // offset+=temp_offset;
             fseek(source, -3*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
 
             // leggo a partire dall'offset
@@ -93,7 +125,7 @@ unsigned long decompressor(char* supp_buf, FILE* source)
         case 3:
             // prossimi 4 byte
             fread(&offset, sizeof(char)*4, 1, source);
-            offset+=temp_offset;
+            // offset+=temp_offset;
             fseek(source, -5*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
 
             // leggo a partire dall'offset
@@ -110,7 +142,8 @@ unsigned long decompressor(char* supp_buf, FILE* source)
 /// di dimensione pari o minore al primo (supplier).
 /// \param container
 /// \param supplier
-/// \param pointer
+/// \param index
+/// \param length
 void fill_in_buff(char container[], char supplier[], unsigned int index, unsigned int length)
 {
     for (int i = 0; i < length; ++i) {
@@ -118,16 +151,15 @@ void fill_in_buff(char container[], char supplier[], unsigned int index, unsigne
     }
 }
 
-
 int main() {
     // "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/testWikipediaCompressed";
 
     FILE *source;
     FILE *destination;
-    char infile_name[] = "testWikipediaCompressed";
-    char outfile_name[] = "output.txt";
+    char infile_name[] = "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed";
+    char outfile_name[] = "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output.txt";
     unsigned long dimension;
-    unsigned long buffer_dim = 65536;
+    unsigned long buffer_dim = 64000;
 
     if ((source = fopen(infile_name, "rb"))== NULL) {
         printf("Errore apertura del file in lettura");
@@ -138,18 +170,18 @@ int main() {
         return -1;
     }
     dimension = varint_to_dim(source);
-    do_literal(source); // dato che non ci sono ancora copie, mi aspetto un literal
+    // do_literal(source); // dato che non ci sono ancora copie, mi aspetto un literal
 
     char pack_buf[buffer_dim];
     int out = 0;
     unsigned long read_past = 0;
     unsigned long read_pres = 0;
     unsigned long read_total = 0;
-    while (out<2) {
-        //TODO: Assicurarsi di coprire queste situazioni
-        // può accadere che
-        //   -   il pacchetto è pieno prima del completamento della trascrizione di copia o literal (fare in modo che il pacchetto copra la dimensione del literal)
-        //   -   il buffer
+
+
+    // fintanto che: il pacchetto non è stato letto interamente || EOF
+    //while (out<3) {
+    while (read_total!=buffer_dim) {
         char supp_pack_buff[buffer_dim];
         read_pres = decompressor(supp_pack_buff, source);
         read_total+=read_pres;
@@ -159,6 +191,7 @@ int main() {
     }
     // scrivo su file
     fwrite(pack_buf, sizeof(char),read_total,destination);
+
     fclose(destination);
     fclose(source);
     return 0;
