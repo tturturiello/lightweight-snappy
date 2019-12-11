@@ -68,6 +68,16 @@ char *write_copy(unsigned int length, unsigned long offset, char *output) {
 
 }
 
+void write_file_compressed(const char *beginning, char *end) {
+    FILE *fcompressed;
+    if((fcompressed = fopen("test_compressed", "wb") ) != NULL){
+        fwrite(&beginning, sizeof(char), end - beginning, fcompressed);
+    } else {
+        printf("Errore scrittura su file\n");
+    }
+    fclose(fcompressed);
+}
+
 int main() {
     int literal_length = 0;
     int copy_length = 0;
@@ -75,6 +85,7 @@ int main() {
     char *input;
     char *output;
     const char * beginning;
+    const char * out_beginning;
     char *input_limit;
 
 
@@ -90,7 +101,9 @@ int main() {
         fread(input, sizeof(char), file_size, finput);
         printf("Dimesnione file: %d bytes, %d u32\n", file_size, file_size/4);
         beginning = input;
+        out_beginning = output;
         input_limit = input + file_size;
+
     } else {
         puts("Errore apertura file");
         return 1;
@@ -122,6 +135,10 @@ int main() {
         input+= 4 + copy_length;
 
     }
+
+
+    write_file_compressed(out_beginning, output);
+
     puts("\n");
     for (int i = 0; i < htable_size; ++i) {
         print_tree_inorder(hash_table[i]);
