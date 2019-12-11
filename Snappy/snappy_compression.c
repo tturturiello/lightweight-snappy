@@ -15,7 +15,6 @@ int find_copy_length(char *input, char *candidate, const char *limit) {//TODO: m
             return length;
         }
     }
-
     return length;
 }
 
@@ -70,12 +69,18 @@ char *write_copy(unsigned int length, unsigned long offset, char *output) {
 
 void write_file_compressed(const char *beginning, char *end) {
     FILE *fcompressed;
-    if((fcompressed = fopen("test_compressed", "wb") ) != NULL){
+    if((fcompressed = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "w") ) != NULL){
+        puts("Inizio scrittura------------\n");
         fwrite(&beginning, sizeof(char), end - beginning, fcompressed);
     } else {
         printf("Errore scrittura su file\n");
     }
     fclose(fcompressed);
+}
+
+char *write_dim_varint(unsigned int file_dim, char *output) {
+    unsigned int size_varint = parse_to_varint(file_dim, output);
+    return output + size_varint;
 }
 
 int main() {
@@ -104,6 +109,8 @@ int main() {
         out_beginning = output;
         input_limit = input + file_size;
 
+        output = write_dim_varint(file_size, output);
+
     } else {
         puts("Errore apertura file");
         return 1;
@@ -130,10 +137,8 @@ int main() {
             copy_length = find_copy_length(input, candidate, input_limit);
             printf("%X copy of offset = %d and length = %d\n", current_u32, input - candidate, copy_length);
             output = write_copy(copy_length, input - candidate, output);
-
         }
         input+= 4 + copy_length;
-
     }
 
 
