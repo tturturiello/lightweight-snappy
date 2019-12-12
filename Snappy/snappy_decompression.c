@@ -3,57 +3,86 @@
 //
 
 #include <stdio.h>
-#include "IO_utils.h"
 #include "snappy_decompression.h"
 #include "varint.h"
-void do_copy(FILE *source, unsigned long len, unsigned int temp_offset, char* supp_buf)
-{
-    unsigned int offset = 0;
-    // prossimi 2 byte
-    fread(&offset, sizeof(char)*2, 1, source);
-    offset+=temp_offset;
-    fseek(source, -3*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
+#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed"
+#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output_decompressed.txt"
+#define BUFFER_DIM 64000
 
-    // leggo a partire dall'offset
-    fseek(source, -(offset * sizeof(char)), 1);
-    fread(supp_buf, sizeof(char) * len, 1, source);
-    fseek(source, sizeof(char)*offset+1, 1); // rewind alla posizione attuale
+// 'byte_arr' contiene dei byte che possono essere letti come unico numero attraverso 'value'
+typedef union convertion {
+    char byte_arr[4];
+    int value;
+} Converter;
+
+typedef struct source_buffer {
+    char buf[BUFFER_DIM];
+    long mark;
+} Source;
+
+typedef struct destination_buffer {
+    char buf[BUFFER_DIM];
+    long mark;
+} Destination;
+
+int open_resources(FILE **file_in, FILE **file_out);
+
+void close_resources(FILE *file_in, FILE *file_out);
+
+unsigned int decompressor(Destination *dest_buf, Source *src_buf);
+
+int main() {
+    FILE *source;
+    FILE *destination;
+    open_resources(&source, &destination);
+
+    unsigned long uncomp_dim = varint_to_dim(source);
+    Source *buf_src = (Source *)malloc(sizeof(Source));
+    Destination *buf_dest = (Destination *)malloc(sizeof(Destination));
+
+    fread(buf_src->buf, sizeof(char), BUFFER_DIM, source);
+
+    //char pack_buf[BUFFER_DIM];
+    int out = 0;
+    unsigned long readed = 0;
+    unsigned long readed_tot = 0;
+
+    // finche' non ho letto tutto il buffer src_buf
+    while (out<3) {
+        // voglio che il buffer si riempia totalmente non perdendo il puntatore alla chiamata precedente
+        readed = decompressor(buf_dest, buf_src);
+        readed_tot+=readed;
+        out++;
+    }
+    // scrivo su file
+    fwrite(buf_dest->buf, sizeof(char), readed_tot, destination);
+    close_resources(source, destination);
+    return 0;
 }
 
-
-// TODO: USARE fflush() per liberare il buffer e scrivere il suo contenuto nel File se pieno.
-// TODO: creare struttura byte_sequence con incormazioni riguardanti: len notag_value, supp_buf
-void do_literal(FILE *source, unsigned long len, unsigned char notag_value, char* supp_buf)
-{
-    unsigned char assoc_bytes; //= (*char) malloc(sizeof(char)); // numero di byte associati
-    assoc_bytes = 0;
-    switch (notag_value) {
-        case 63:
-            assoc_bytes++;
-        case 62:
-            assoc_bytes++;
-        case 61:
-            assoc_bytes++;
-        case 60:
-            assoc_bytes++;
-
-            fread(&len, sizeof(char)*assoc_bytes, 1, source);
-            // TODO: riempire supp_buf dal puntatore attuale
-            len++;
-            fread(supp_buf, sizeof(char) * len, 1, source);
-            break;
-        default: // <60 len = val+1
-            len = notag_value+1;
-            fread(supp_buf, sizeof(char), len, source);
+int open_resources(FILE **file_in, FILE **file_out) {
+    if ((*file_in = fopen(FINPUT_NAME, "rb"))== NULL) {
+        printf("Errore apertura del file in lettura");
+        return -1;
+    }
+    if ((*file_out = fopen(FOUTPUT_NAME, "wb")) == NULL ) {
+        printf("Errore apertura del file in lettura");
+        return -1;
     }
 }
 
-// ritorna l'offset di lettura del supp_buff
-//unsigned long decompressor(char *supp_buf, FILE* source)
-unsigned long decompressor(char* supp_buf, FILE* source)
+void close_resources(FILE *file_in, FILE *file_out) {
+    fclose(file_in);
+    fclose(file_out);
+}
+
+unsigned int decompressor(Destination *dest_buf, Source *src_buf)
 {
-    unsigned char byte_buf;
-    fread(&byte_buf, sizeof(char), 1, source); // inserisce il prossimo byte nel byte_buf
+    unsigned char byte_buf = *src_buf->buf;
+    unsigned char debug = *dest_buf->buf;
+
+    // fread(&byte_buf, sizeof(char), 1, source); // inserisce il prossimo byte nel byte_buf
+
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
     unsigned char mask_dx_notag = 0x1C; // per la copia di tag 01
@@ -63,9 +92,11 @@ unsigned long decompressor(char* supp_buf, FILE* source)
     unsigned int offset = 0;
     unsigned int temp_offset = 0;
 
-    unsigned long len = 0;
+    unsigned int len = 0;
+    Converter converter;
 
     //fread(&byte_buf, sizeof(char),1, source);
+
 
     unsigned char mode = mask_tag&byte_buf;
     switch(mode) {
@@ -80,124 +111,72 @@ unsigned long decompressor(char* supp_buf, FILE* source)
                 case 60:
                     assoc_bytes++;
 
-                    fread(&len, sizeof(char)*assoc_bytes, 1, source);
-                    // TODO: riempire supp_buf dal puntatore attuale
-                    len++;
-                    fread(supp_buf, sizeof(char) * len, 1, source);
+                    // TODO: capire come aumentare il puntatore alla struttura come in file.
+                    // trasformo i byte associati alla lunghezza del buffer in valore intero
+                    for (int i = assoc_bytes; i > 0; i--, src_buf->mark++) {
+                        converter.byte_arr[i - 1] = src_buf->buf[src_buf->mark];
+                    }
+                    len = converter.value + 1;
+
+                    // copio elemento per elemento
+                    for (unsigned int i = 0; i < len; ++i, dest_buf->mark++, src_buf->mark++) {
+                        dest_buf->buf[dest_buf->mark] = src_buf->buf[src_buf->mark];
+                    }
                     break;
                 default: // <60 len = val+1
                     len = notag_value+1;
-                    fread(supp_buf, sizeof(char), len, source);
+                    for (unsigned int i = 0; i < len; ++i, dest_buf->mark++, src_buf->mark++) {
+                        dest_buf->buf[dest_buf->mark] = src_buf->buf[src_buf->mark];
+                    }
             }
-            // fwrite(&byte_buf, sizeof(char)*assoc_bytes, 4, source); // NO
-            // avendo assoc_bytes, leggi tot bytes associati
             break;
             // copie
         case 1:
             // similmente al literal ho al massimo 4 byte da riempire con il valore dell'offset
-            // shift 2 per non considerare il tag
-            len = ((byte_buf&mask_dx_notag)>>2)+4;
-            temp_offset = byte_buf&mask_sx_notag;
-            temp_offset = temp_offset>>2;
+            len = ((byte_buf&mask_dx_notag)>>2)+4; // 00011100 -> 111 + 4
+            // bit piu' significativi nel byte di tag
+            converter.byte_arr[2] = (byte_buf & mask_sx_notag) >> 5; // 11100000 -> 111
+            //TODO: ERI RIMASTO QUI
+            converter.byte_arr[3] = src_buf->buf[src_buf->mark++];
+            offset = converter.value;
 
-            // shifo per portare le tre cifre alle più significative del byte da leggere come offset
-            temp_offset = temp_offset << 5;
-            fread(&offset, sizeof(char), 1, source);
-            offset+=temp_offset;
-            fseek(source, -2*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
-
-            // leggo a partire dall'offset
-            fseek(source, -(offset * sizeof(char)), 1);
-            fread(supp_buf, sizeof(char) * len, 1, source);
-            fseek(source, sizeof(char)*offset+1, 1); // rewind alla posizione attuale
+            // mi riporto prima dell'offset letto e all'inizio del byte
+            src_buf -= 1+offset;
+            // copio elemento per elemento
+            for (unsigned int i = 0; i < len; ++i, dest_buf->mark++, src_buf->mark++) {
+                dest_buf->buf[dest_buf->mark] = src_buf->buf[src_buf->mark];
+            }
             break;
         case 2:
-            // prossimi 2 byte
-            fread(&offset, sizeof(char)*2, 1, source);
-            // offset+=temp_offset;
-            fseek(source, -3*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
+            len = notag_value+1;
+            converter.byte_arr[3] = src_buf->buf[src_buf->mark++];
+            converter.byte_arr[2] = src_buf->buf[src_buf->mark++];
+            offset = converter.value;
 
-            // leggo a partire dall'offset
-            fseek(source, -(offset * sizeof(char)), 1);
-            fread(supp_buf, sizeof(char) * len, 1, source);
-            fseek(source, sizeof(char)*offset+1, 1); // rewind alla posizione attuale
+            // mi riporto all'inizio dei byte letti e applico l'offset
+            src_buf -= 2+offset;
+            // copio elemento per elemento
+            for (unsigned int i = 0; i < len; ++i, dest_buf->mark++, src_buf->mark++) {
+                dest_buf->buf[dest_buf->mark] = src_buf->buf[src_buf->mark];
+            }
             break;
         case 3:
             // prossimi 4 byte
-            fread(&offset, sizeof(char)*4, 1, source);
-            // offset+=temp_offset;
-            fseek(source, -5*sizeof(char), 1);  // mi riporto prima dell'offset letto e all'inizio del byte
+            len = notag_value+1;
+            converter.byte_arr[3] = src_buf->buf[src_buf->mark++];
+            converter.byte_arr[2] = src_buf->buf[src_buf->mark++];
+            converter.byte_arr[1] = src_buf->buf[src_buf->mark++];
+            converter.byte_arr[0] = src_buf->buf[src_buf->mark++];
+            offset = converter.value;
 
-            // leggo a partire dall'offset
-            fseek(source, -(offset * sizeof(char)), 1);
-            fread(supp_buf, sizeof(char) * len, 1, source);
-            fseek(source, sizeof(char)*offset+1, 1); // rewind alla posizione attuale
+            // mi riporto all'inizio dei byte letti e applico l'offset
+            src_buf -= 4+offset;
+            // copio elemento per elemento
+            for (unsigned int i = 0; i < len; ++i, dest_buf->mark++, src_buf->mark++) {
+                dest_buf->buf[dest_buf->mark] = src_buf->buf[src_buf->mark];
+            }
             break;
         default:break;
     }
     return len;
-}
-
-/// riempie un array (container) da un indice di partenza, con il contenuto di un altro array
-/// di dimensione pari o minore al primo (supplier).
-/// \param container
-/// \param supplier
-/// \param index
-/// \param length
-void fill_in_buff(char container[], char supplier[], unsigned int index, unsigned int length)
-{
-    for (int i = 0; i < length; ++i) {
-        container[index+i] = supplier[i];
-    }
-}
-
-int main() {
-    // "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/testWikipediaCompressed";
-
-    FILE *source;
-    FILE *destination;
-    char infile_name[] = "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed";
-    char outfile_name[] = "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output.txt";
-    unsigned long dimension;
-    unsigned long buffer_dim = 64000;
-
-    if ((source = fopen(infile_name, "rb"))== NULL) {
-        printf("Errore apertura del file in lettura");
-        return -1;
-    }
-    if ((destination = fopen(outfile_name, "wb")) == NULL ) {
-        printf("Errore apertura del file in lettura");
-        return -1;
-    }
-    dimension = varint_to_dim(source);
-    // do_literal(source); // dato che non ci sono ancora copie, mi aspetto un literal
-
-    char pack_buf[buffer_dim];
-    int out = 0;
-    unsigned long read_past = 0;
-    unsigned long read_pres = 0;
-    unsigned long read_total = 0;
-
-
-    // fintanto che: il pacchetto non è stato letto interamente || EOF
-    //while (out<3) {
-    while (read_total!=buffer_dim) {
-        char supp_pack_buff[buffer_dim];
-        read_pres = decompressor(supp_pack_buff, source);
-        read_total+=read_pres;
-        fill_in_buff(pack_buf, supp_pack_buff, read_past, read_pres);
-        read_past = read_pres;
-        out++;
-    }
-    // scrivo su file
-    fwrite(pack_buf, sizeof(char),read_total,destination);
-
-    fclose(destination);
-    fclose(source);
-    return 0;
-
-
-
-
-    return 0;
 }
