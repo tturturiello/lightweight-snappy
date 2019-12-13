@@ -28,7 +28,7 @@ void close_resources(FILE *file_in, FILE *file_out);
 
 void flush(Buffer *buffer, FILE *file, char mode);
 
-void decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src);
+unsigned long decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src);
 
 char buf_curr_elem(Buffer *buffer);
 
@@ -50,10 +50,10 @@ int main()
     // carico il buffer di 64kb del contenuto del file compresso
     fread(buf_src->array, sizeof(char), BUFFER_DIM, source);
 
-    // fino alla fine del file
+    unsigned long readed = 0;
     do {
-        decompressor(destination, source, buf_dest, buf_src);
-    } while (buf_curr_elem(buf_src) != '\0');
+        readed += decompressor(destination, source, buf_dest, buf_src);
+    } while (readed < uncomp_dim);
     flush(buf_dest, destination, 'w');
 
     float losing = lose_data(destination, (float) uncomp_dim);
@@ -88,13 +88,20 @@ void close_resources(FILE *file_in, FILE *file_out)
 void init_buffer(Buffer *buffer)
 {
     buffer->mark = 0;
+    memset(buffer->array, 0, BUFFER_DIM);
 }
 
 void flush(Buffer *buffer, FILE *file, char mode)
 {
     switch(mode) {
-        case 'r': fread(buffer->array, sizeof(char), buffer->mark, file);
-        case 'w': fwrite(buffer->array, sizeof(char), buffer->mark, file);
+        case 'r':
+            fread(buffer->array, sizeof(char), buffer->mark, file);
+            init_buffer(buffer);
+            break;
+        case 'w':
+            fwrite(buffer->array, sizeof(char), buffer->mark, file);
+            init_buffer(buffer);
+            break;
         default:break;
     }
 }
@@ -107,12 +114,13 @@ char buf_curr_elem(Buffer *buffer)
 float lose_data(FILE *destination, float desire_dim)
 {
     fseek(destination, 0, SEEK_END);
+    int debug = ftell(destination);
     if (desire_dim != (float)ftell(destination))
-        return (float)ftell(destination)/desire_dim;
+        return 1-(float)ftell(destination)/desire_dim;
     return 0;
 }
 
-void inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src)
+unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src)
 {
     unsigned char byte_buf = *buf_src->array;
     unsigned char debug = *buf_dest->array;
@@ -165,6 +173,8 @@ void inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buff
                     break;
                 default: // <60 len = val+1
                     len = notag_value+1;
+                    if (len + buf_dest->mark > BUFFER_DIM)
+                        flush(buf_dest, destination, 'w');
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
                         buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
                     }
@@ -182,9 +192,9 @@ void inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buff
 
             // bit piu' significativi nel byte di tag
             converter.byte_arr[2] = (byte_buf & mask_sx_notag) >> 5; // 11100000 -> 111
-
             if (extra_bytes + buf_src->mark > BUFFER_DIM)
                 flush(buf_src, source, 'r');
+
             converter.byte_arr[3] = buf_src->array[buf_src->mark++];
             offset = converter.value;
 
@@ -245,4 +255,5 @@ void inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buff
             break;
         default:break;
     }
+    return len;
 }
