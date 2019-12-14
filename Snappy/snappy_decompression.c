@@ -32,13 +32,15 @@ int open_resources(FILE **file_in, FILE **file_out);
 
 void close_resources(FILE *file_in, FILE *file_out);
 
+void flush(Buffer *buf_out, FILE *infile, unsigned long dim);
+
 void rflush(Buffer *buf_dest, FILE *destination);
 
 void wflush(Buffer *buf_dest, Buffer *buf_src, FILE *destination, FILE *source);
 
 unsigned long decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src);
 
-char buf_curr_elem(Buffer *buffer);
+char* buf_curr_elem(Buffer *buffer);
 
 float lose_data(FILE *destination, float desire_dim);
 
@@ -54,8 +56,7 @@ int main()
     Buffer *buf_dest = (Buffer *) buffer_constructor();
 
     // carico il buffer di 64kb del contenuto del file compresso
-    fread(buf_src->array, sizeof(char), BUFFER_DIM, source);
-
+    flush(buf_src, source, BUFFER_DIM);
     unsigned long readed = 0;
     do {
         readed += decompressor(destination, source, buf_dest, buf_src);
@@ -105,6 +106,11 @@ Buffer *buffer_constructor()
     return buffer;
 }
 
+void flush(Buffer *buf_out, FILE *infile, unsigned long dim)
+{
+    fread(buf_out->array, sizeof(char), dim, infile);
+}
+
 void wflush(Buffer *buf_dest, Buffer *buf_src, FILE *destination, FILE *source)
 {
     // scrivo su file
@@ -123,9 +129,9 @@ void rflush(Buffer *buf_dest, FILE *destination)
     init_buffer(buf_dest);
 }
 
-char buf_curr_elem(Buffer *buffer)
+char* buf_curr_elem(Buffer *buffer)
 {
-    return buffer->array[buffer->mark];
+    return &(buffer->array[buffer->mark]);
 }
 
 float lose_data(FILE *destination, float desire_dim)
@@ -138,7 +144,7 @@ float lose_data(FILE *destination, float desire_dim)
 
 int is_in_buffer(Buffer *buffer, unsigned long n_bytes)
 {
-    if (n_bytes + buffer->mark > BUFFER_DIM)
+    if (buffer->mark + n_bytes  > BUFFER_DIM)
         return 0;
     return 1;
 }
@@ -188,7 +194,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                         wflush(buf_dest, buf_src, destination, source);
                     // copio elemento per elemento
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                        buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
+                        *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
                     }
                     break;
                 default: // <60 len = val+1
@@ -196,7 +202,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                     if (!is_in_buffer(buf_dest, len))
                         wflush(buf_dest, buf_src, destination, source);
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                        buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
+                        *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
                     }
             }
             break;
@@ -222,7 +228,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             buf_src->mark -= 1 + offset;
             // copio elemento per elemento
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
+                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
             }
             break;
         case 2:
@@ -249,7 +255,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
 
             // copio elemento per elemento
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
+                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
             }
             break;
         case 3:
@@ -274,7 +280,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             buf_src->mark -= 4 + offset;
             // copio elemento per elemento
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                buf_dest->array[buf_dest->mark] = buf_src->array[buf_src->mark];
+                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
             }
             break;
         default:break;
