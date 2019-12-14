@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
@@ -29,22 +30,28 @@ Tree **get_hash_table(int file_size) {
     return hash_table;
 }
 
-int getFileSize(const FILE *finput) {
-    fseek(finput, 0, SEEK_END);
+unsigned int getFileSize(const char *filename) {
+/*    fseek(finput, 0, SEEK_END);
     int file_size = ftell(finput);
     fseek(finput, 0, SEEK_SET);
-    return file_size;
+    return file_size;*/
+    struct stat st;//TODO:?
+
+    if (stat(filename, &st) == 0)
+        return st.st_size;
+    else return -1;
 }
 
 char *write_literal(const char *input, char *output, unsigned int len) {
     printf("Literal di dimensione %d\n", len);
     //Scrivo tag byte
     if(len < 60){//TODO: generalizzare
-        *(output++) = (len << 2u) & 0xFF;
+        *(output++) = ((len-1) << 2u) & 0xFF;
     } else {
         *(output++) = (60 << 2u);
         *(output++) = (len-1) & 0xFF;
     }
+
     for (int i = 0; i < len; ++i) {
         *(output++) = input[i];
         printf("%X ", input[i]);
@@ -86,6 +93,7 @@ char *write_dim_varint(unsigned int file_dim, char *output) {
 int main() {
     int literal_length = 0;
     int copy_length = 0;
+    const char *input_file_name = "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt";
     FILE *finput;
     char *input;
     char *output;
@@ -95,15 +103,15 @@ int main() {
 
 
     Tree *hash_table[htable_size];
-    for (int i = 0; i < htable_size; ++i) {
+    for (int i = 0; i < htable_size; i++) {
         hash_table[i] = create_tree();
     }
 
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "r") )!= NULL){
-        int file_size = getFileSize(finput);
-        input = (char *)malloc(sizeof(char)*file_size);
+    if((finput = fopen(input_file_name, "r") )!= NULL){
+        unsigned int file_size = getFileSize(input_file_name);
+        input = (char *)calloc(file_size, sizeof(char));
         output = (char *)malloc(sizeof(char)*file_size);
-        fread(input, sizeof(char), file_size, finput);
+        printf("SCRITTI:%d\n", file_size = fread(input, sizeof(char), file_size, finput) );
         printf("Dimesnione file: %d bytes, %d u32\n", file_size, file_size/4);
         beginning = input;
         out_beginning = output;
@@ -121,37 +129,51 @@ int main() {
     int index = 0;
     Node *copy;
     char *candidate;
-    while( input+4 <= input_limit ) {
+    while( input+4 < input_limit ) {
         current_u32 = get_next_u32(input, input_limit);
         index = hash_bytes(current_u32);
         if (is_empty(hash_table[index]) | ((copy = find(current_u32, hash_table[index]) ) == NULL)) {
             //printf("%X literal\n", current_u32);
             //output[literal_length++] = current_u32; //Aggiungo il literal in output
             insert(current_u32, input - beginning , hash_table[index]);
-            literal_length++;
+            literal_length+=4;
             copy_length = 0;
         } else {
+
             output = write_literal(input - literal_length, output, literal_length);
             literal_length = 0;
             candidate = beginning + copy->offset;
-            copy_length = find_copy_length(input, candidate, input_limit);
-            printf("%X copy of offset = %d and length = %d\n", current_u32, input - candidate, copy_length);
-            output = write_copy(copy_length, input - candidate, output);
+            copy_length = find_copy_length(input+4, candidate + 4, input_limit);
+            printf("%X copy of offset = %d and length = %d\n", current_u32, input - candidate, copy_length + 4);
+            output = write_copy(copy_length + 4, input - candidate, output);
         }
         input+= 4 + copy_length;
     }
 
 
     write_file_compressed(out_beginning, output);
+    unsigned char byte;
 
-    for(int i = 0; out_beginning + i <= output; i++){
-        printf("%X ", *(out_beginning+i));
+    puts("\n\nFIle originale");
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "r") )!= NULL) {
+        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
+            printf("%X ", byte);
+        }
+    }
+    fclose(finput);
+
+    puts("\n\nBuffer in input");
+    for(int i = 0; beginning + i < input_limit; i++){
+        printf("%3d: %X ", i, *(beginning+i));
     }
 
-    puts("\nFIle compress\n");
+    puts("\n\nBuffer in output");
+    for(int i = 0; out_beginning + i <= output; i++){
+        printf("%4d: %X ", i, *(out_beginning+i));
+    }
 
+    puts("\n\nFIle compress");
     if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "r") )!= NULL){
-        unsigned char byte;
         while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
             printf("%X ", byte);
 
