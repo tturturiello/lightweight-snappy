@@ -11,7 +11,7 @@
 #include "snappy_decompression.h"
 #define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed"
 #define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output_decompressed.txt"
-#define BUFFER_DIM 64000
+#define BUFFER_DIM 23
 
 //// converte una sequenza di byte contenuti in un array, in un numero
 typedef union convertion {
@@ -146,7 +146,8 @@ int is_in_buffer(Buffer *buffer, unsigned long n_bytes)
 unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_dest, Buffer *buf_src)
 {
     //unsigned char curr_byte = *buf_src->array;
-    unsigned char curr_byte = buf_curr_elem(buf_src);
+    //unsigned char curr_byte = buf_curr_elem(buf_src);
+    unsigned char curr_byte = *buf_src->array;
 
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
@@ -238,7 +239,8 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
 
             converter.byte_arr[3] = buf_src->array[buf_src->mark++];
             converter.byte_arr[2] = buf_src->array[buf_src->mark++];
-            //TODO: fixare offset, potrebbe causare una exception se e' maggiore alla dimensione del buffer
+            //TODO: fixare offset, potrebbe causare una exception se e' maggiore alla dimensione del buffer,
+            // può accadere veramente? O il buf_src converge al contenuto del pacchetto pre-compressione?
             offset = converter.value;
             // offset = 2;
 
