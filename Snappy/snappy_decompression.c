@@ -282,7 +282,9 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             converter.byte_arr[3] = *buf_next_elem(buf_src);
             offset = converter.value;
 
-            memory_mark = buf_src->mark;
+            // memory_mark = buf_src->mark;
+            
+
             // mi riporto prima dell'offset letto e all'inizio del byte
             buf_src->mark -= extra_bytes + offset;
             // copio elemento per elemento
