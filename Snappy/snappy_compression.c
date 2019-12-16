@@ -63,7 +63,7 @@ char *write_literal(const char *input, char *output, unsigned int len) {
 
 u32 get_next_u32(const unsigned char *input, const unsigned char *limit) {
 
-    return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
+    return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3]; //TODO union di conversione
 }
 
 char *write_copy(unsigned int length, unsigned long offset, char *output) {
@@ -149,6 +149,7 @@ int main() {
         }
         input+= 4 + copy_length;
     }
+    output = write_literal(input - literal_length, output, literal_length);
 
 
     write_file_compressed(out_beginning, output);

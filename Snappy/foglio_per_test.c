@@ -21,12 +21,15 @@ void prova_con_BTS(){
     }
 }
 
-int main(){
+void test_load_u32() {
     unsigned char *input = "\x3F""\xEC""\xAD""\x09";
 
     u32 load;
     load = (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
     printf("%X\n", load);
+}
+
+void test_tag_literal() {
     unsigned int len = 67;
     unsigned char output;
     if(len < 60){//TODO: generalizzare
@@ -50,9 +53,16 @@ int main(){
 
     output = (offset >> 8u) & 0xFF;
     printf("%X ", output);
+}
 
+int main(){
 
+    unsigned int len = 9;
+    unsigned int offset = 84;
 
+    if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
+
+    }
 
 
 
