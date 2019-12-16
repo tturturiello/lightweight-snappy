@@ -22,6 +22,7 @@ typedef union convertion {
 typedef struct buffer {
     char array[BUFFER_DIM];
     long mark;
+    long mark_copy;
 } Buffer;
 
 void init_buffer(Buffer *buffer);
@@ -264,38 +265,41 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             break;
             // copie
         case 1:
+            buf_dest->mark_copy = buf_dest->mark;
+
             extra_bytes = 1; // di lettura offset
             len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
 
             // is_writable
-            if (!is_in_buffer(buf_dest, len))
+            if (!is_in_buffer(buf_dest, len)) {
                 wflush(buf_dest, buf_src, destination, source);
-
+            }
             // bit piu' significativi nel byte di tag
             converter.byte_arr[2] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
 
-            if (!is_in_buffer(buf_src, extra_bytes))
+            if (!is_in_buffer(buf_src, extra_bytes)) {
                 rflush(buf_src, source);
-
-            //buf_src->mark++;
-            //converter.byte_arr[3] = buf_src->array[buf_src->mark];
+            }
+            // leggo gli extra byte
             converter.byte_arr[3] = *buf_next_elem(buf_src);
             offset = converter.value;
 
-            // memory_mark = buf_src->mark;
-            
+            // leggo a partire dall'offset
+            buf_dest->mark_copy -= offset;
 
-            // mi riporto prima dell'offset letto e all'inizio del byte
-            buf_src->mark -= extra_bytes + offset;
             // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
+            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
                 //buf_src->mark++;
-                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                //*buf_curr_elem(buf_dest) = *buf_elem(buf_src);
+                *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
+
                 temp = *buf_curr_elem(buf_src);
             }
-            buf_src->mark = memory_mark;
+            // buf_src->mark = memory_mark;
             break;
         case 2:
+            buf_dest->mark_copy = buf_dest->mark;
+
             extra_bytes = 2;
             len = notag_value+1;
 
@@ -317,20 +321,25 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             offset = converter.value;
             // offset = 2;
 
-            memory_mark = buf_src->mark;
+            // memory_mark = buf_src->mark;
+
             // mi riporto all'inizio dei byte letti e applico l'offset
             //TODO: fixare problemi copia
             // buf_src->mark -= offset;
-            buf_src->mark -= extra_bytes + offset;
+            buf_dest->mark_copy -= offset;
             // copio elemento per elemento
 
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
+                // *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
+
                 temp = *buf_curr_elem(buf_src);
             }
-            buf_src->mark = memory_mark;
+            // buf_src->mark = memory_mark;
             break;
         case 3:
+            buf_dest->mark_copy = buf_dest->mark;
+
             extra_bytes = 4;
             len = notag_value+1;
 
@@ -348,15 +357,18 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             converter.byte_arr[3] = *buf_next_elem(buf_src);
             offset = converter.value;
 
-            memory_mark = buf_src->mark;
+            // memory_mark = buf_src->mark;
+
             // mi riporto all'inizio dei byte letti e applico l'offset
-            buf_src->mark -= extra_bytes + offset;
+            buf_dest->mark_copy -= offset;
             // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
+                // *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
                 temp = *buf_curr_elem(buf_src);
             }
-            buf_src->mark = memory_mark;
+            // buf_src->mark = memory_mark;
+
             break;
         default:break;
     }
