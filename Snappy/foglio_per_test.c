@@ -3,6 +3,8 @@
 #include "BST.h"
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
+#include <string.h>
 
 void prova_con_BTS(){
     srand(time(NULL));
@@ -68,15 +70,7 @@ char *write_single_copy(char *output, unsigned int len, unsigned int offset){
     return output;
 }
 
-int main(){
-
-    unsigned int len = 69;
-    unsigned int offset = 1024;
-
-    char *output = (char *)malloc(sizeof(char)*30);
-    char *bop = output;
-
-
+char *test_write_copy(unsigned int len, unsigned int offset, char *output) {
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
         output = write_single_copy(output, 64, offset); //64 ? la max len per una copia
         len-=64;
@@ -87,6 +81,36 @@ int main(){
     }
 
     output = write_single_copy(output, len, offset);
+    return output;
+}
+
+int main(){
+
+    unsigned int len = 65539;
+    unsigned int offset = 1024;
+
+    char *output = (char *)malloc(sizeof(char)*30);
+    char *bop = output;
+
+    unsigned int len_minus_1 = len-1;
+    if(len_minus_1 < 60) {
+        *output++ = (len_minus_1 << 2u) & 0xFF;
+    } else {
+        char *tag_byte = output++; //Lascio lo spazio per il tag byte
+        unsigned int code_literal = 59; //identifica quanti sono i byte utilizzati per codificare len-1
+
+        while(len_minus_1 > 0){
+            *output++ = len_minus_1 & 0xFF;
+            len_minus_1 = len_minus_1 >> 8;
+            code_literal++;
+        }
+        assert(code_literal >= 60);
+        assert(code_literal <= 64);
+        *tag_byte = code_literal << 2;
+    }
+
+    //memcpy(output)
+
 
 
 

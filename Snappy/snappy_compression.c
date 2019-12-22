@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include "IO_utils.h"
 #include "varint.h"
@@ -44,15 +46,24 @@ unsigned int getFileSize(const char *filename) {
 
 char *write_literal(const char *input, char *output, unsigned int len) {
     printf("Literal di dimensione %d\n", len);
-    //Scrivo tag byte
-    if(len < 60){//TODO: generalizzare
-        *output++ = ((len-1) << 2u) & 0xFF;
+    unsigned int len_minus_1 = len-1;
+    if(len_minus_1 < 60) {
+        *output++ = (len_minus_1 << 2u) & 0xFF;
     } else {
-        *output++ = (60 << 2u);
-        *output++ = (len-1) & 0xFF;
+        char *tag_byte = output++; //Lascio lo spazio per il tag byte
+        unsigned int code_literal = 59; //identifica quanti sono i byte utilizzati per codificare len-1
+
+        while(len_minus_1 > 0){
+            *output++ = len_minus_1 & 0xFF;
+            len_minus_1 = len_minus_1 >> 8;
+            code_literal++;
+        }
+        assert(code_literal >= 60);
+        assert(code_literal <= 64);
+        *tag_byte = code_literal << 2;
     }
 
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i) {//TODO memcpy()?
         *output++ = input[i];
         printf("%X ", input[i]);
     }
@@ -63,7 +74,7 @@ char *write_literal(const char *input, char *output, unsigned int len) {
 
 u32 get_next_u32(const unsigned char *input, const unsigned char *limit) {
 
-    return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3]; //TODO union di conversione
+    return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
 }
 
 char *write_single_copy(char *output, unsigned int len, unsigned int offset){
@@ -80,6 +91,7 @@ char *write_single_copy(char *output, unsigned int len, unsigned int offset){
 }
 
 char *write_copy(char *output, unsigned int len, unsigned long offset) {
+
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
         output = write_single_copy(output, 64, offset); //64 ? la max len per una copia
         len-=64;
@@ -108,6 +120,37 @@ void write_file_compressed(const char *beginning, char *end) {
 char *write_dim_varint(unsigned int file_dim, char *output) {
     unsigned int size_varint = parse_to_varint(file_dim, output);
     return output + size_varint;
+}
+
+void print_result_compression(FILE *finput, const char *output, const char *beginning, const char *out_beginning,
+                              const char *input_limit) {
+    unsigned char byte;
+
+    puts("\n\nFIle originale");
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "r") )!= NULL) {
+        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
+            printf("%X ", byte);
+        }
+    }
+    fclose(finput);
+
+    puts("\n\nBuffer in input");
+    for(int i = 0; beginning + i < input_limit; i++){
+        printf("%3d: %X ", i, *(beginning+i));
+    }
+
+    puts("\n\nBuffer in output");
+    for(int i = 0; out_beginning + i <= output; i++){
+        printf("%4d: %X ", i, *(out_beginning+i));
+    }
+
+    puts("\n\nFIle compress");
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "r") )!= NULL){
+        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
+            printf("%X ", byte);
+
+        }
+    }
 }
 
 int main() {
@@ -173,35 +216,9 @@ int main() {
 
 
     write_file_compressed(out_beginning, output);
-    unsigned char byte;
+    print_result_compression(finput, output, beginning, out_beginning, input_limit);
 
-    puts("\n\nFIle originale");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "r") )!= NULL) {
-        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
-            printf("%X ", byte);
-        }
-    }
-    fclose(finput);
-
-    puts("\n\nBuffer in input");
-    for(int i = 0; beginning + i < input_limit; i++){
-        printf("%3d: %X ", i, *(beginning+i));
-    }
-
-    puts("\n\nBuffer in output");
-    for(int i = 0; out_beginning + i <= output; i++){
-        printf("%4d: %X ", i, *(out_beginning+i));
-    }
-
-    puts("\n\nFIle compress");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "r") )!= NULL){
-        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
-            printf("%X ", byte);
-
-        }
-    }
-
-/*    puts("\n");
+    /*    puts("\n");
     for (int i = 0; i < htable_size; ++i) {
         print_tree_inorder(hash_table[i]);
         printf("\n");
