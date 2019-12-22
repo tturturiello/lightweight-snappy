@@ -46,14 +46,14 @@ char *write_literal(const char *input, char *output, unsigned int len) {
     printf("Literal di dimensione %d\n", len);
     //Scrivo tag byte
     if(len < 60){//TODO: generalizzare
-        *(output++) = ((len-1) << 2u) & 0xFF;
+        *output++ = ((len-1) << 2u) & 0xFF;
     } else {
-        *(output++) = (60 << 2u);
-        *(output++) = (len-1) & 0xFF;
+        *output++ = (60 << 2u);
+        *output++ = (len-1) & 0xFF;
     }
 
     for (int i = 0; i < len; ++i) {
-        *(output++) = input[i];
+        *output++ = input[i];
         printf("%X ", input[i]);
     }
     printf("\n");
@@ -66,10 +66,30 @@ u32 get_next_u32(const unsigned char *input, const unsigned char *limit) {
     return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3]; //TODO union di conversione
 }
 
-char *write_copy(unsigned int length, unsigned long offset, char *output) {
-    *(output++) = (length-1) << 2 | 2;//TODO 3 tipi di copia
-    *(output++) = offset & 0xFF;
-    *(output++) = (offset >> 8u) & 0xFF;
+char *write_single_copy(char *output, unsigned int len, unsigned int offset){
+    if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
+        *output++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
+        *output++ = offset & 0xFF;
+    } else if ( offset < 65536) {//Copy 10: 6 bits for len-1 and 16 bits for offset //TODO: assert?
+        *output++ = ((len - 1)  << 2)  | 2;
+        *output++ = offset & 0xFF;
+        *output++ = (offset >> 8) & 0xFF;
+        //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
+    }
+    return output;
+}
+
+char *write_copy(char *output, unsigned int len, unsigned long offset) {
+    while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
+        output = write_single_copy(output, 64, offset); //64 ? la max len per una copia
+        len-=64;
+    }
+    if(len > 64) { //64 < len < 68
+        output = write_single_copy(output, 60, offset);
+        len-=60;
+    }
+
+    output = write_single_copy(output, len, offset);
     return output;
 
 }
@@ -145,7 +165,7 @@ int main() {
             candidate = beginning + copy->offset;
             copy_length = find_copy_length(input+4, candidate + 4, input_limit);
             printf("%X copy of offset = %d and length = %d\n", current_u32, input - candidate, copy_length + 4);
-            output = write_copy(copy_length + 4, input - candidate, output);
+            output = write_copy( output, copy_length + 4, input - candidate);
         }
         input+= 4 + copy_length;
     }
