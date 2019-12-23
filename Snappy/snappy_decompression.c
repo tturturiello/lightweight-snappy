@@ -275,13 +275,13 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                 wflush(buf_dest, buf_src, destination, source);
             }
             // bit piu' significativi nel byte di tag
-            converter.byte_arr[2] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
+            converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
 
             if (!is_in_buffer(buf_src, extra_bytes)) {
                 rflush(buf_src, source);
             }
             // leggo gli extra byte
-            converter.byte_arr[3] = *buf_next_elem(buf_src);
+            converter.byte_arr[0] = *buf_next_elem(buf_src);
             offset = converter.value;
 
             // leggo a partire dall'offset
@@ -302,7 +302,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
 
             extra_bytes = 2;
             len = notag_value+1;
-
+            
             // copy is_writable
             if (!is_in_buffer(buf_dest, len))
                 wflush(buf_dest, buf_src, destination, source);
@@ -332,7 +332,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
                 // *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
                 *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
-
+                buf_dest->array[buf_dest->mark] = buf_dest->array[buf_dest->mark_copy];
                 temp = *buf_curr_elem(buf_src);
             }
             // buf_src->mark = memory_mark;
