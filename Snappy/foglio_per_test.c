@@ -6,6 +6,12 @@
 #include <assert.h>
 #include <string.h>
 
+#define MAX_BLOCK_SIZE 65536
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
 void prova_con_BTS(){
     srand(time(NULL));
     Tree *hash_table[10];
@@ -31,31 +37,6 @@ void test_load_u32() {
     printf("%X\n", load);
 }
 
-void test_tag_literal() {
-    unsigned int len = 67;
-    unsigned char output;
-    if(len < 60){//TODO: generalizzare
-        output = ((len-1) << 2u) & 0xFF;
-        printf("%X", output);
-    } else {
-        output = 60 << 2u;
-        printf("%X ", output);
-        output = (len-1) & 0xFF;
-        printf("%X", output);
-
-    }
-    puts("");
-    len = 7;
-    unsigned long offset = 63;
-    output = (len-1) << 2 | 2;//TODO 3 tipi di copia
-    printf("%X ", output);
-
-    output = offset & 0xFF;
-    printf("%X ", output);
-
-    output = (offset >> 8u) & 0xFF;
-    printf("%X ", output);
-}
 
 char *write_single_copy(char *output, unsigned int len, unsigned int offset){
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
@@ -84,7 +65,7 @@ char *test_write_copy(unsigned int len, unsigned int offset, char *output) {
     return output;
 }
 
-int main(){
+void test_tag_literal(){
 
     unsigned int len = 65539;
     unsigned int offset = 1024;
@@ -111,11 +92,46 @@ int main(){
 
     //memcpy(output)
 
-
-
-
     puts("\n\nBuffer in output");
     for(int i = 0; bop + i < output; i++){
         printf("%X ", *(bop+i));
     }
+}
+
+unsigned int getFileSize(FILE *finput) {
+    fseek(finput, 0, SEEK_END);
+    int file_size = ftell(finput);
+    fseek(finput, 0, SEEK_SET);
+    return file_size;
+}
+
+int main() {
+/*
+    FILE *finput;
+    char *input = (char *)calloc(600, sizeof(char));
+    char *beginning = input;
+    unsigned int n_bytes;
+
+    if((finput = fopen("..\\Files_test\\alice.txt", "r")) == NULL) {
+        exit(1);
+    }
+    unsigned int file_size = getFileSize(finput);
+    n_bytes = min(file_size, MAX_BLOCK_SIZE);
+
+    while(n_bytes > 0){ //TODO empty file
+        n_bytes = fread(input, sizeof(char), 600, finput);
+        printf("\n\nLetti: %d\n\n", n_bytes);
+        puts(input);
+    }
+*/
+    Tree **hash_table = (Tree **)malloc(sizeof(Tree*)*20);
+    for (int i = 0; i < 20; i++) {
+        hash_table[i] = create_tree();
+    }
+    insert(34, 0, hash_table[0]);
+    insert(323, 0, hash_table[3]);
+    insert(12, 0, hash_table[19]);
+
+    print_tree_inorder(hash_table[19]);
+
 }
