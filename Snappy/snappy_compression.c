@@ -124,11 +124,11 @@ void print_result_compression(FILE *finput, const char *output, const char *begi
 
     puts("\n\nBuffer in output");
     for(int i = 0; out_beginning + i <= output; i++){
-        printf("%4d: %X ", i, *(out_beginning+i));
+        printf("%X ", *(out_beginning+i));
     }
 
     puts("\n\nFIle compress");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "r") )!= NULL){
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "rb") )!= NULL){
         while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
             printf("%X ", byte);
 
@@ -298,10 +298,7 @@ int found_match() {
     return 0;
 }
 
-void emit_literal() {
-    output.current = write_literal(input.current - literal_length, output.current, literal_length);
 
-}
 
 void start_new_literal() {
     literal_length = 0;
@@ -321,10 +318,16 @@ void exhaust_input() {
 
 void update_hash_table() { //TODO prev hash & cur hash
     if(cmp.copy == NULL){
+        u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
+        //insert(previous_u32, input.current - input.beginning - 1, cmp.hash_table[hash_bytes(previous_u32)]);
         insert(cmp.current_u32, input.current - input.beginning , cmp.hash_table[cmp.current_index]);
     } else {
         cmp.copy->offset = input.current - input.beginning;
     }
+}
+
+void emit_literal() {
+    output.current = write_literal(input.current - literal_length, output.current, literal_length);
 }
 
 void emit_copy() {
@@ -332,7 +335,7 @@ void emit_copy() {
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4, input.current + input.bytes_left);
     output.current = write_copy( output.current, copy_length, input.current - candidate);
     update_hash_table();
-
+    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 
@@ -367,12 +370,12 @@ void compress_next_block() {
 
 
 void write_block_compressed() {
-    fwrite(input.beginning, sizeof(char), input.current - input.beginning, fcompressed);
+    fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
 }
 
 int main() {
 
-    fcompressed = fopen("..\\test_compressed", "w");
+    fcompressed = fopen("..\\test_compressed", "wb");
 
     open_file_input();
     init_compressor(&cmp);
