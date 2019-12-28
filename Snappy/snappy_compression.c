@@ -99,16 +99,6 @@ char *write_copy(char *output, unsigned int len, unsigned long offset) {
 
 }
 
-void write_file_compressed(const char *beginning, char *end) {
-    FILE *fcompressed;
-    if((fcompressed = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "w") ) != NULL){
-        puts("Inizio scrittura------------\n");
-        fwrite(beginning, sizeof(char), end - beginning, fcompressed);
-    } else {
-        printf("Errore scrittura su file\n");
-    }
-    fclose(fcompressed);
-}
 
 /*char *write_dim_varint(unsigned int file_dim, char *output) {
     unsigned int size_varint = parse_to_varint(file_dim, output);
@@ -247,6 +237,7 @@ void init_compressor(Compressor *cmp){
 }
 
 static FILE *finput;
+static FILE *fcompressed;
 static unsigned long long file_size;
 static Buffer input;
 static Buffer output;
@@ -268,7 +259,7 @@ void get_file_size() {
     else return -1;*/
 }
 void open_file_input() {
-    finput = fopen("..\\testWikipedia.txt", "r");
+    finput = fopen("..\\testWikipedia.txt", "rb");
     assert(finput != NULL);
     get_file_size();
 }
@@ -360,10 +351,7 @@ void compress_next_block() {
         if(found_match()){//TODO: Heuristic match skipping
             emit_literal();
             start_new_literal();
-
             emit_copy();
-
-            //if exhausting input()
         } else {
             update_hash_table();
             append_literal();
@@ -371,14 +359,20 @@ void compress_next_block() {
 
     }
     exhaust_input();
-    emit_literal();//TODO sicuri?
+    input.current - input.beginning;
+    emit_literal();
 
 
 }
 
 
+void write_block_compressed() {
+    fwrite(input.beginning, sizeof(char), input.current - input.beginning, fcompressed);
+}
+
 int main() {
 
+    fcompressed = fopen("..\\test_compressed", "w");
 
     open_file_input();
     init_compressor(&cmp);
@@ -388,12 +382,14 @@ int main() {
     do {
         load_next_block();
         compress_next_block();
-        //write_block_compressed();
+        write_block_compressed();
     } while(input_is_full());
 
-
-    print_result_compression(finput, output.current, input.beginning, output.beginning, input.current);
     fclose(finput);
+    fclose(fcompressed);
+    print_result_compression(finput, output.current, input.beginning, output.beginning, input.current);
+
+
 
 
 }

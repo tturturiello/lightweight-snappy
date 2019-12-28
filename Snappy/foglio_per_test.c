@@ -106,13 +106,13 @@ unsigned int getFileSize(FILE *finput) {
 }
 
 int main() {
-/*
+
     FILE *finput;
     char *input = (char *)calloc(600, sizeof(char));
     char *beginning = input;
     unsigned int n_bytes;
 
-    if((finput = fopen("..\\Files_test\\alice.txt", "r")) == NULL) {
+    if((finput = fopen("..\\", "r")) == NULL) {
         exit(1);
     }
     unsigned int file_size = getFileSize(finput);
@@ -123,15 +123,5 @@ int main() {
         printf("\n\nLetti: %d\n\n", n_bytes);
         puts(input);
     }
-*/
-    Tree **hash_table = (Tree **)malloc(sizeof(Tree*)*20);
-    for (int i = 0; i < 20; i++) {
-        hash_table[i] = create_tree();
-    }
-    insert(34, 0, hash_table[0]);
-    insert(323, 0, hash_table[3]);
-    insert(12, 0, hash_table[19]);
-
-    print_tree_inorder(hash_table[19]);
 
 }
