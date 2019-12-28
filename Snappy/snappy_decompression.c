@@ -196,7 +196,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
     //TODO: reset temporaneo
     // init_buffer(buf_dest);
 
-    temp_r_OS(buf_src);
+    //temp_r_OS(buf_src);
 
     //unsigned char curr_byte = *buf_src->array;
     unsigned char curr_byte = *buf_curr_elem(buf_src);
@@ -247,7 +247,10 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++) {
                         buf_src->mark++;
                         *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                        printf("%X ",*buf_curr_elem(buf_src));
                     }
+                    printf("\n");
+                    printf("\n");
                     break;
                 default: // <60 len = val+1
                     len = notag_value+1;
