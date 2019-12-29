@@ -9,21 +9,24 @@
 #include <string.h>
 #include "varint.h"
 #include "snappy_decompression.h"
-#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed"
+//#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed"
+#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/alice_decompressed"
 #define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output_decompressed.txt"
-#define BUFFER_DIM 64000
+
+#define BUFFER_DIM 65536
+// #define BUFFER_DIM 12
 
 //// converte una sequenza di byte contenuti in un array, in un numero
-typedef union convertion {
+union convertion {
     char byte_arr[4];
     unsigned long value;
-} Converter;
+};
 
-typedef struct buffer {
+struct buffer {
     char array[BUFFER_DIM];
     long mark;
     long mark_copy;
-} Buffer;
+};
 
 void init_buffer(Buffer *buffer);
 
@@ -51,6 +54,28 @@ char* buf_next_elem(Buffer *buffer);
 
 float lose_data(FILE *destination, float desire_dim);
 
+int decompress(FILE *source, FILE *destination)
+{
+    unsigned long uncomp_dim = varint_to_dim(source);
+    Buffer *buf_src = (Buffer *) buffer_constructor();
+    Buffer *buf_dest = (Buffer *) buffer_constructor();
+
+    // carico il buffer di 64kb del contenuto del file compresso
+    flush(buf_src, source, BUFFER_DIM);
+    int count = 0;
+    unsigned long readed = 0;
+    do {
+        count++;
+        printf("%d", count);
+        readed += decompressor(destination, source, buf_dest, buf_src);
+    } while (readed < uncomp_dim);
+    wflush(buf_dest, buf_src, destination, source);
+
+    close_resources(source, destination);
+
+    return 0;
+}
+
 int main()
 {
     FILE *source;
@@ -64,9 +89,11 @@ int main()
 
     // carico il buffer di 64kb del contenuto del file compresso
     flush(buf_src, source, BUFFER_DIM);
-
+    int count = 0;
     unsigned long readed = 0;
     do {
+        count++;
+        printf("%d", count);
         readed += decompressor(destination, source, buf_dest, buf_src);
     } while (readed < uncomp_dim);
     wflush(buf_dest, buf_src, destination, source);
@@ -196,7 +223,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
     //TODO: reset temporaneo
     // init_buffer(buf_dest);
 
-    //temp_r_OS(buf_src);
+    // temp_r_OS(buf_src);
 
     //unsigned char curr_byte = *buf_src->array;
     unsigned char curr_byte = *buf_curr_elem(buf_src);
@@ -243,14 +270,20 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                     // se non è sufficiente la memoria in buf_dest -> svuotare il buffer
                     if (!is_in_buffer(buf_dest, len))
                         wflush(buf_dest, buf_src, destination, source);
+
+                    // se la dimensione di quello che voglio scrivere è > della lunchezza del buffer
+                        // iniziare a scrivere fino alla fine del buffer
+                        // svuotare il buffer nel file
+                        // ripetere per la lunghezza rimanente
+
+                    // for lunghezza literal
+
+
                     // copio elemento per elemento
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++) {
                         buf_src->mark++;
                         *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
-                        printf("%X ",*buf_curr_elem(buf_src));
                     }
-                    printf("\n");
-                    printf("\n");
                     break;
                 default: // <60 len = val+1
                     len = notag_value+1;
@@ -265,6 +298,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                     }
                     buf_src->mark--;
             }
+            printf(" L \n");
             break;
             // copie
         case 1:
@@ -299,6 +333,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                 temp = *buf_curr_elem(buf_src);
             }
             // buf_src->mark = memory_mark;
+            printf(" 01 \n");
             break;
         case 2:
             buf_dest->mark_copy = buf_dest->mark;
@@ -314,10 +349,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             if (!is_in_buffer(buf_src, extra_bytes))
                 rflush(buf_src, source);
 
-            //buf_src->mark++;
             converter.byte_arr[0] = *buf_next_elem(buf_src);
-            //buf_src->mark++;
-            //converter.byte_arr[2] = buf_src->array[buf_src->mark];
             converter.byte_arr[1] = *buf_next_elem(buf_src);
             //TODO: fixare offset, potrebbe causare una exception se e' maggiore alla dimensione del buffer,
             // può accadere veramente? O il buf_src converge al contenuto del pacchetto pre-compressione?
@@ -336,9 +368,9 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
                 // *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
                 *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
                 buf_dest->array[buf_dest->mark] = buf_dest->array[buf_dest->mark_copy];
-                temp = *buf_curr_elem(buf_src);
             }
             // buf_src->mark = memory_mark;
+            printf(" 10 \n");
             break;
         case 3:
             buf_dest->mark_copy = buf_dest->mark;
@@ -358,6 +390,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             converter.byte_arr[1] = *buf_next_elem(buf_src);
             converter.byte_arr[2] = *buf_next_elem(buf_src);
             converter.byte_arr[3] = *buf_next_elem(buf_src);
+
             offset = converter.value;
 
             // memory_mark = buf_src->mark;
@@ -368,10 +401,10 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Buffer *buf_d
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
                 // *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
                 *buf_curr_elem(buf_dest) = buf_dest->array[buf_dest->mark_copy];
-                temp = *buf_curr_elem(buf_src);
             }
             // buf_src->mark = memory_mark;
 
+            printf(" 11 \n");
             break;
         default:break;
     }
