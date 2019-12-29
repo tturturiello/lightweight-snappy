@@ -108,20 +108,30 @@ unsigned int getFileSize(FILE *finput) {
 int main() {
 
     FILE *finput;
-    char *input = (char *)calloc(600, sizeof(char));
+    FILE *fout;
+
+    char *input = (char *)calloc(100, sizeof(char));
     char *beginning = input;
     unsigned int n_bytes;
 
-    if((finput = fopen("..\\", "r")) == NULL) {
+    if((finput = fopen("..\\testWikipedia.txt", "rb")) == NULL) {
+        exit(1);
+    }
+
+    if((fout = fopen("..\\output.txt", "wb")) == NULL) {
         exit(1);
     }
     unsigned int file_size = getFileSize(finput);
     n_bytes = min(file_size, MAX_BLOCK_SIZE);
 
     while(n_bytes > 0){ //TODO empty file
-        n_bytes = fread(input, sizeof(char), 600, finput);
+        n_bytes = fread(input, sizeof(char), 100, finput);
         printf("\n\nLetti: %d\n\n", n_bytes);
+
+        printf("\n\nScritti: %d\n\n", fwrite(input, sizeof(char), n_bytes, fout));
         puts(input);
     }
 
+    fclose(finput);
+    fclose(fout);
 }

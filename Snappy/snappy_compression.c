@@ -6,7 +6,7 @@
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
-#define MAX_BLOCK_SIZE 65536
+#define MAX_BLOCK_SIZE 100
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -29,6 +29,10 @@ void init_Buffer(Buffer *bf, unsigned int buffer_size){
 void move_current(Buffer *bf, unsigned int offset){
     bf->current += offset;
     bf->bytes_left -= offset;
+}
+
+void reset_buffer(Buffer *bf) {
+    bf->current = bf->beginning;
 }
 
 typedef struct compressor{
@@ -78,13 +82,10 @@ static inline u32 hash_bytes(u32 bytes){
     return (bytes * kmul) % htable_size;
 }
 
-
 Tree **get_hash_table(int file_size) {
     Tree **hash_table = (Tree **)malloc(sizeof(Tree*)*10);
     return hash_table;
 }
-
-
 
 char *write_literal(const char *input, char *output, unsigned int len) {
     printf("Literal di dimensione %d\n", len);
@@ -113,8 +114,6 @@ char *write_literal(const char *input, char *output, unsigned int len) {
     return output;
 
 }
-
-
 
 char *write_single_copy(char *output, unsigned int len, unsigned int offset){
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
@@ -145,19 +144,18 @@ char *write_copy(char *output, unsigned int len, unsigned long offset) {
 
 }
 
-void print_result_compression(FILE *finput, const char *output, const char *beginning, const char *out_beginning,
-                              const char *input_limit) {
+void print_result_compression() {
     unsigned char byte;
 
     puts("\n\nFIle originale");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "r") )!= NULL) {
+    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "rb") )!= NULL) {
         while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
             printf("%X ", byte);
         }
     }
     fclose(finput);
 
-    puts("\n\nBuffer in input");
+/*    puts("\n\nBuffer in input");
     for(int i = 0; beginning + i < input_limit; i++){
         printf("%3d: %X ", i, *(beginning+i));
     }
@@ -165,7 +163,7 @@ void print_result_compression(FILE *finput, const char *output, const char *begi
     puts("\n\nBuffer in output");
     for(int i = 0; out_beginning + i <= output; i++){
         printf("%X ", *(out_beginning+i));
-    }
+    }*/
 
     puts("\n\nFIle compress");
     if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "rb") )!= NULL){
@@ -174,8 +172,8 @@ void print_result_compression(FILE *finput, const char *output, const char *begi
 
         }
     }
+    fclose(finput);
 }
-
 
 void get_file_size() {
     fseek(finput, 0, SEEK_END);
@@ -194,20 +192,25 @@ void open_file_input() {
     assert(finput != NULL);
     get_file_size();
 }
+
 void write_dim_varint() {
     unsigned int size_varint = parse_to_varint(file_size, output.current);
     output.current += size_varint;
 }
+
 void init_buffers() {
     init_Buffer(&input, MAX_BLOCK_SIZE);
     init_Buffer(&output, MAX_BLOCK_SIZE);
 }
+
 void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
 }
+
 int input_is_full() {
     return input.bytes_left != 0;
 }
+
 int is_block_end() {
     return input.bytes_left <= 15;//TODO, margine migliore?
 }
@@ -237,11 +240,10 @@ int found_match() {
 
 }
 
-
-
 void start_new_literal() {
     literal_length = 0;
 }
+
 void append_literal() {
     literal_length += 4;
     move_current(&input, 4);
@@ -253,7 +255,6 @@ void exhaust_input() {
     move_current(&input, input.bytes_left);
 
 }
-
 
 void update_hash_table_tree() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
@@ -306,6 +307,11 @@ void reset_hash_table() {
     memset(cmp.hash_table, 0, htable_size * sizeof(unsigned short *));
 }
 
+void reset_buffers() {
+    reset_buffer(&input);
+    reset_buffer(&output);
+}
+
 void compress_next_block() {
 
     start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
@@ -326,7 +332,6 @@ void compress_next_block() {
 
     }
     exhaust_input();
-    input.current - input.beginning;
     emit_literal();
 }
 
@@ -335,7 +340,7 @@ void compress_next_block() {
 int main() {
 
     fcompressed = fopen("..\\test_compressed", "wb");
-
+    assert(fcompressed != NULL);
     open_file_input();
     init_compressor(&cmp);
     init_buffers();//TODO passare environment in parametro
@@ -347,12 +352,18 @@ int main() {
         write_block_compressed();
 
         reset_hash_table();
+        reset_buffers();
         load_next_block();
     }
 
-    fclose(finput);
-    fclose(fcompressed);
-    print_result_compression(finput, output.current, input.beginning, output.beginning, input.current);
+    if(fclose(finput) == 0)
+        printf("Chiuso Input\n");
+
+    if(fclose(fcompressed) == 0)
+        printf("Chiuso output\n");
+
+    print_result_compression();
+
 }
 
 
