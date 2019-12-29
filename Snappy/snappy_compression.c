@@ -6,13 +6,15 @@
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
-#define MAX_BLOCK_SIZE 100
+#define MAX_BLOCK_SIZE 65536
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\alice.txt"
+#define FOUTPUT_NAME "..\\alice_decompressed.txt"
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-static unsigned int htable_size = 20;
+static unsigned int htable_size = 4096;
 
 
 typedef struct buffer {
@@ -57,13 +59,11 @@ void init_compressor(Compressor *cmp){
 
 static FILE *finput;
 static FILE *fcompressed;
-static unsigned long long file_size;
+static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
 static Compressor cmp;
 static unsigned int literal_length;
-
-
 
 unsigned int find_copy_length(char *input, char *candidate, const char *limit) {//TODO: max copy length? Incremental copy?
     unsigned int length = 0;
@@ -144,41 +144,12 @@ char *write_copy(char *output, unsigned int len, unsigned long offset) {
 
 }
 
-void print_result_compression() {
-    unsigned char byte;
-
-    puts("\n\nFIle originale");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt", "rb") )!= NULL) {
-        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
-            printf("%X ", byte);
-        }
-    }
-    fclose(finput);
-
-/*    puts("\n\nBuffer in input");
-    for(int i = 0; beginning + i < input_limit; i++){
-        printf("%3d: %X ", i, *(beginning+i));
-    }
-
-    puts("\n\nBuffer in output");
-    for(int i = 0; out_beginning + i <= output; i++){
-        printf("%X ", *(out_beginning+i));
-    }*/
-
-    puts("\n\nFIle compress");
-    if((finput = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\test_compressed", "rb") )!= NULL){
-        while((fread(&byte, sizeof(char), 1, finput ) !=0) ) {
-            printf("%X ", byte);
-
-        }
-    }
-    fclose(finput);
-}
-
-void get_file_size() {
-    fseek(finput, 0, SEEK_END);
-    file_size = ftell(finput);
-    fseek(finput, 0, SEEK_SET);
+unsigned long long get_file_size(FILE *file) {
+    unsigned long long size;
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    return size;
 
 /*    struct stat st;//TODO:?
 
@@ -188,13 +159,13 @@ void get_file_size() {
 }
 
 void open_file_input() {
-    finput = fopen("..\\testWikipedia.txt", "rb");
+    finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
-    get_file_size();
+    finput_size = get_file_size(finput);
 }
 
 void write_dim_varint() {
-    unsigned int size_varint = parse_to_varint(file_size, output.current);
+    unsigned int size_varint = parse_to_varint(finput_size, output.current);
     output.current += size_varint;
 }
 
@@ -312,6 +283,28 @@ void reset_buffers() {
     reset_buffer(&output);
 }
 
+void print_result_compression() {
+    unsigned char byte;
+
+    printf("\n\nDimensione file originale = %llu bytes", finput_size);
+
+    if((finput = fopen(FOUTPUT_NAME, "rb") )!= NULL) {
+        printf("\n\nDimensione file compresso = %llu bytes", get_file_size(finput));
+    }
+    fclose(finput);
+
+
+/*    puts("\n\nBuffer in input");
+    for(int i = 0; beginning + i < input_limit; i++){
+        printf("%3d: %X ", i, *(beginning+i));
+    }
+
+    puts("\n\nBuffer in output");
+    for(int i = 0; out_beginning + i <= output; i++){
+        printf("%X ", *(out_beginning+i));
+    }*/
+
+}
 void compress_next_block() {
 
     start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
@@ -339,7 +332,7 @@ void compress_next_block() {
 
 int main() {
 
-    fcompressed = fopen("..\\test_compressed", "wb");
+    fcompressed = fopen(FOUTPUT_NAME, "wb");
     assert(fcompressed != NULL);
     open_file_input();
     init_compressor(&cmp);
