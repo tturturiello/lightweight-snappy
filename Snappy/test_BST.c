@@ -15,4 +15,14 @@ int main(){
     Node *found_node = find(97889, tree);
     if(found_node != NULL)
         printf("\n%u", getBytes(found_node));
+
+    free_tree(tree);
+    //tree = create_tree();
+    puts("");
+    insert(99, 0, tree);
+    insert(-1, 0, tree);
+
+    print_tree_inorder(tree);
+
+
 }

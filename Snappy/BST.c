@@ -14,6 +14,15 @@ struct tree *create_tree(){
     return tree;
 }
 
+void free_node(Node * node){
+    if (node != NULL) {
+        free_node(node->right);
+        free_node(node->left);
+        free(node);
+    }
+}
+
+
 int is_empty(Tree *tree){
     return tree->root == NULL;
 }
@@ -47,6 +56,10 @@ void print_node(Node *node) {
 
 void print_tree_inorder(Tree *tree){
     print_node(tree->root);
+}
+
+void free_tree(Tree *tree){
+    free_node(tree->root);
 }
 
 
