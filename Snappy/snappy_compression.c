@@ -3,12 +3,15 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\alice.txt"
-#define FOUTPUT_NAME "..\\alice_decompressed.txt"
+#define FINPUT_NAME "..\\testWikipedia.txt"
+//"C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\alice.txt"
+#define FOUTPUT_NAME "..\\test_compressed"
+//"..\\alice_decompressed"
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -88,7 +91,7 @@ Tree **get_hash_table(int file_size) {
 }
 
 char *write_literal(const char *input, char *output, unsigned int len) {
-    printf("Literal di dimensione %d\n", len);
+    //printf("Literal di dimensione %d\n", len);
     unsigned int len_minus_1 = len-1;
     if(len_minus_1 < 60) {
         *output++ = (len_minus_1 << 2u) & 0xFF;
@@ -108,9 +111,9 @@ char *write_literal(const char *input, char *output, unsigned int len) {
 
     for (int i = 0; i < len; ++i) {//TODO memcpy()?
         *output++ = input[i];
-        printf("[%d]: %X ",i, input[i]);
+        //printf("[%d]: %X ",i, input[i]);
     }
-    printf("\n");
+    //printf("\n");
     return output;
 
 }
@@ -258,7 +261,7 @@ void emit_copy() {
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4, input.current + input.bytes_left);
     output.current = write_copy( output.current, copy_length, input.current - candidate);
     cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
-    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
+    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
@@ -283,15 +286,18 @@ void reset_buffers() {
     reset_buffer(&output);
 }
 
-void print_result_compression() {
+void print_result_compression(double time_taken) {
     unsigned char byte;
 
-    printf("\n\nDimensione file originale = %llu bytes", finput_size);
+    printf("\nDimensione file originale = %llu bytes\n", finput_size);
 
     if((finput = fopen(FOUTPUT_NAME, "rb") )!= NULL) {
-        printf("\n\nDimensione file compresso = %llu bytes", get_file_size(finput));
+        printf("\nDimensione file compresso = %llu bytes\n", get_file_size(finput));
     }
     fclose(finput);
+
+    printf("\nCompression took %f seconds to execute\n", time_taken);
+    printf("\n %f bytes/s\n", finput_size/time_taken);
 
 
 /*    puts("\n\nBuffer in input");
@@ -332,6 +338,9 @@ void compress_next_block() {
 
 int main() {
 
+    clock_t t;
+    t = clock();
+
     fcompressed = fopen(FOUTPUT_NAME, "wb");
     assert(fcompressed != NULL);
     open_file_input();
@@ -355,7 +364,10 @@ int main() {
     if(fclose(fcompressed) == 0)
         printf("Chiuso output\n");
 
-    print_result_compression();
+    t = clock() - t;
+    double time_taken = ((double)t)/CLOCKS_PER_SEC;
+
+    print_result_compression(time_taken);
 
 }
 
