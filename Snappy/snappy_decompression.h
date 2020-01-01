@@ -9,5 +9,8 @@
 
 typedef union convertion Converter;
 typedef struct buffer Buffer;
+//typedef struct bufferoni Buffer;
+typedef struct source Source_buffer;
+typedef struct destination Destination_buffer;
 
 int decompress(FILE *source, FILE *destination);
