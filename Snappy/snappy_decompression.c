@@ -13,8 +13,8 @@
 #define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/alice_compressed"
 #define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/output_decompressed.txt"
 
-// #define BUFFER_DIM 65536+5 // worst case: nessuna compressione e 5 byte per esprimere copia o literal
-#define BUFFER_DIM 4000000
+#define BUFFER_DIM 65536+5 // worst case: nessuna compressione e 5 byte per esprimere copia o literal
+// #define BUFFER_DIM 4000000
 // #define BUFFER_DIM 100
 
 // TODO: attenzione a lavorare col contenuto del puntatore di dest_buf
@@ -42,11 +42,6 @@ struct destination {
     char* array;
     unsigned long mark;
     unsigned long mark_copy;
-};
-
-union bufferoni {
-    Buffer *src;
-    struct destination dest;
 };
 
 void init_buffer(Buffer *buffer);
@@ -281,7 +276,7 @@ float lose_data(FILE *destination, float desire_dim)
 
 int is_readable(Source_buffer *buffer, unsigned long n_bytes)
 {
-    // problemi in lettura
+    // se dalla posizione corrente si supera la dimensione del buffer leggendo i byte extra
     if (buffer->mark + n_bytes >= BUFFER_DIM)
         return 0;
     return 1;
@@ -315,13 +310,8 @@ void temp_r_OS(Buffer *buf_src)
 
 unsigned long inline decompressor(FILE *destination, FILE *source, Destination_buffer *buf_dest, Source_buffer *buf_src)
 {
-    //TODO: reset temporaneo
-    // init_buffer(buf_dest);
-
     //unsigned char curr_byte = *buf_src->array;
     unsigned char curr_byte = (buf_src->array[buf_src->mark]); // corrente
-    //unsigned char curr_byte = *buf_src->array;
-    unsigned long memory_mark;
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
     unsigned char mask_dx_notag = 0x1C; // per la copia di tag 01
@@ -354,10 +344,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Destination_b
                     }
                     */
                     if (!is_readable(buf_src, extra_bytes)) {
-                        for (int j = 0; j < BUFFER_DIM; ++j) {
-                            buf_src->array[j] = buf_dest->array[buf_dest->mark];
-                            buf_dest->mark++;
-                        }
+                        fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
                         buf_src->mark = 0;
                     }
 
@@ -382,11 +369,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Destination_b
                     buf_src->mark++;
 
                     if (!is_readable(buf_src, extra_bytes)) {
-                        // fread(buf_src->array, sizeof(char), BUFFER_DIM, destination);
-                        for (int j = 0; j < BUFFER_DIM; ++j) {
-                            buf_src->array[j] = buf_dest->array[buf_dest->mark];
-                            buf_dest->mark++;
-                        }
+                        fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
                         buf_src->mark = 0;
                     }
 
@@ -409,10 +392,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Destination_b
             converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
 
             if (!is_readable(buf_src, extra_bytes)) {
-                for (int j = 0; j < BUFFER_DIM; ++j) {
-                    buf_src->array[j] = buf_dest->array[buf_dest->mark];
-                    buf_dest->mark++;
-                }
+                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
                 buf_src->mark = 0;
             }
             // leggo gli extra byte
@@ -439,12 +419,8 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Destination_b
             extra_bytes = 2;
             len = notag_value+1;
 
-            // copy is_readable
             if (!is_readable(buf_src, extra_bytes)) {
-                for (int j = 0; j < BUFFER_DIM; ++j) {
-                    buf_src->array[j] = buf_dest->array[buf_dest->mark];
-                    buf_dest->mark++;
-                }
+                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
                 buf_src->mark = 0;
             }
 
@@ -473,10 +449,7 @@ unsigned long inline decompressor(FILE *destination, FILE *source, Destination_b
 
             // copy is_readable
             if (!is_readable(buf_src, extra_bytes)) {
-                for (int j = 0; j < BUFFER_DIM; ++j) {
-                    buf_src->array[j] = buf_dest->array[buf_dest->mark];
-                    buf_dest->mark++;
-                }
+                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
                 buf_src->mark = 0;
             }
 
