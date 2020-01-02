@@ -1,0 +1,11 @@
+//
+// Created by belli on 29.12.2019.
+//
+
+#ifndef SNAPPY_SNAPPY_COMPRESSION_H
+#define SNAPPY_SNAPPY_COMPRESSION_H
+
+
+
+
+#endif //SNAPPY_SNAPPY_COMPRESSION_H

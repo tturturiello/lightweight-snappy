@@ -8,9 +8,9 @@
 #include "varint.h"
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\alice.txt"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\immagine.tiff"
 //#define FINPUT_NAME "..\\testWikipedia.txt"
-#define FOUTPUT_NAME "..\\alice_decompressed"
+#define FOUTPUT_NAME "..\\Compressed_test\\tiff_compressed"
 //#define FOUTPUT_NAME "..\\test_compressed"
 
 #define min(a,b) \
@@ -299,6 +299,10 @@ void reset_buffers() {
     reset_buffer(&output);
 }
 
+void free_hash_table() {
+    free(cmp.hash_table);
+}
+
 void print_result_compression(double time_taken) {
     unsigned char byte;
 
@@ -307,21 +311,20 @@ void print_result_compression(double time_taken) {
     unsigned long long fout_size = 0;
     if((finput = fopen(FOUTPUT_NAME, "rb") )!= NULL) {
         fout_size = get_file_size(finput);
-        printf("\nDimensione file compresso = %llu bytes\n", fout_size);
+        printf("Dimensione file compresso = %llu bytes\n", fout_size);
     }
     fclose(finput);
 
-    printf("numero di u32 processati = %llu\n", number_of_u32 );
-    printf("numero di collisioni = %llu\n", collisions );
+    double comp_ratio = (double)fout_size / (double)finput_size;
+    printf("Compression ratio = %f\n", (double)finput_size / (double)fout_size );
+    printf("Saving %f%%\n", (1 - comp_ratio)*100 );
+
+    printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
+    printf("Numero di collisioni = %llu\n", collisions );
     printf("In percentuale: %f%%\n", ((double)collisions / (double)number_of_u32)*100 );
 
-    double comp_ratio = (double)fout_size / (double)finput_size;
-    printf("\nCompression ratio = %f\n", (double)finput_size / (double)fout_size );
-    printf("Saving = %f%%\n", (1 - comp_ratio)*100 );
-
-
     printf("\nCompression took %f seconds to execute\n", time_taken);
-    printf("\n %f bytes/s\n", finput_size/time_taken);
+    printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 
 
 /*    puts("\n\nBuffer in input");
@@ -382,6 +385,8 @@ int main() {
 
     while(input_is_full()){
         compress_next_block();
+        printf("Compresso blocco\n");
+
         write_block_compressed();
 
         //print_htable();//TODO Solo per test
@@ -398,6 +403,7 @@ int main() {
         printf("Chiuso output\n");
 
     //TODO free all memory used
+    free_hash_table();
 
     t = clock() - t;
     double time_taken = ((double)t)/CLOCKS_PER_SEC;
