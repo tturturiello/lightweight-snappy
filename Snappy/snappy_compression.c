@@ -33,27 +33,44 @@ static inline int log2_32(unsigned int value) {
 
 }
 
-
 typedef struct buffer {
     char *current;
     char *beginning;
     unsigned int bytes_left;
 } Buffer;
 
-void init_Buffer(Buffer *bf, unsigned int buffer_size){
+/**
+ * Inizializza il buffer allocando dinamicamente un array di byte di
+ * dimensione buffer_size.
+ * @param bf il buffer da inizializzare
+ * @param buffer_size la dimensione del buffer
+ */
+static void init_Buffer(Buffer *bf, unsigned int buffer_size){
     bf->current = (char *)calloc(buffer_size, sizeof(char));
     bf->beginning = bf->current;
     bf->bytes_left = buffer_size;
 }
 
+/**
+ * Sposta la posizione del puntatore current dell'offset specificato
+ * nel buffer bf
+ * @param bf il buffer da modificare
+ * @param offset
+ */
 void move_current(Buffer *bf, unsigned int offset){
     bf->current += offset;
     bf->bytes_left -= offset;
 }
 
+/**
+ * Assegna la posizione di current a quella di beginning resettando cos?
+ * il buffer
+ * @param bf il buffer da resettare
+ */
 void reset_buffer(Buffer *bf) {
     bf->current = bf->beginning;
 }
+
 
 typedef struct compressor{
     unsigned short *hash_table;
@@ -74,6 +91,12 @@ void init_compressor_tree(Compressor *cmp){
 }
 */
 
+/**
+ * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
+ * N.B: anche se la memoria allocata ? una costante, la dimensione dell'hash table utilizzata
+ * in compressione varia proporzionalmente alla dimensione del blocco in compressione
+ * @param cmp il Compressor da inizializzare
+ */
 void init_compressor(Compressor *cmp){
     cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
 }
@@ -170,7 +193,10 @@ char *write_copy(char *output, unsigned int len, unsigned long offset) {
 
 }
 
-
+/**
+ * Scrive sul buffer di output la dimensione del file di input in formato varint.
+ * Quest'informazione sar? poi utilizzata in decompressione
+ */
 void write_dim_varint() {
     unsigned int size_varint = parse_to_varint(finput_size, output.current);
     output.current += size_varint;
@@ -181,12 +207,14 @@ void write_dim_varint() {
  * Il buffer di input ha una grandezza fissa di 65536 byte.
  * Il buffer di output deve tenere conto del fatto che il risultato della compressione
  * pu? essere pi? grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
- * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes.
- * 65536 / 65 ~ 1010.
+ * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes. 65536 / 65 ~ 1010.
+ * Infine va tenuto conto dello spazio occupato dal varint nell'output buffer del primo blocco: la dimensione
+ * massima del file in compressione ? 4 Gb, che occupa 5 bytes in formato varint.
+ *
  */
 void init_buffers() {
     init_Buffer(&input, MAX_BLOCK_SIZE); //TODO min?
-    init_Buffer(&output, MAX_BLOCK_SIZE + 1010);
+    init_Buffer(&output, MAX_BLOCK_SIZE + 1010 + 5);
 }
 
 /**
@@ -203,28 +231,51 @@ static inline void set_htable_size() {
 
 }
 
+/**
+ * Legge il prossimo blocco dal file in input e chiama set_htable_size() per aggiornare
+ * la dimensione dell'hash table. Il blocco letto avr? dimensione <= 65536.
+ */
 static void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
     set_htable_size();
-
 }
 
+/**
+ * Controlla se l'input buffer in compressione ? pieno o vuoto.
+ * @return 1 se l'input buffer ? pieno, 0 altrimenti
+ */
 int input_is_full() {
     return input.bytes_left != 0;
 }
 
+/**
+ * Controlla se la compressione ? vicina ad esaurire l'input buffer.
+ * Nel dettaglio l'input viene considerato esaurito quando i byte rimanenti sono
+ * meno di quelli che andrebbero consumati alla prossima iterazione
+ * @return 1 se l'input ? quasi esaurito
+ */
 int is_block_end() {
-    return input.bytes_left <= 15;//TODO, margine migliore?
+
+    return input.bytes_left < (cmp.skip_bytes++ >> 5) + 15;//TODO, margine migliore?
 }
 
+/**
+ * Converte i 4 bytes contigui a input in u32 (unsigned int)
+ * @param input la posizione da cui caricare i 4 bytes
+ * @return u32
+ */
 static inline u32 get_next_u32(const unsigned char *input) {
     return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
 }
 
+/**
+ * Genera il codice hash dei 4 bytes correnti, che verr? poi utilizzato come indice
+ * per accedere all'hash table. Le informazioni sono salvate nei rispettivi campi del Compressor
+ */
 static inline void generate_hash_index() {
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
-    number_of_u32++;
+    number_of_u32++;//TODO togliere?
 }
 
 int found_match_tree() {
@@ -256,8 +307,8 @@ void start_new_literal() {
 
 void append_literal() {
     u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
-    literal_length += 4;
-    move_current(&input, 4);
+    literal_length += bytes_to_skip;
+    move_current(&input, bytes_to_skip);
 }
 
 void exhaust_input() {
