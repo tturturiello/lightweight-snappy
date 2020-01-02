@@ -114,7 +114,7 @@ int main() {
     char *beginning = input;
     unsigned int n_bytes;
 
-    if((finput = fopen("..\\testWikipedia.txt", "rb")) == NULL) {
+    if((finput = fopen("..\\wikipedia_test.txt", "rb")) == NULL) {
         exit(1);
     }
 

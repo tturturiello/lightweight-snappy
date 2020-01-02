@@ -8,10 +8,7 @@
 #include "varint.h"
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\immagine.tiff"
-//#define FINPUT_NAME "..\\testWikipedia.txt"
-#define FOUTPUT_NAME "..\\Compressed_test\\tiff_compressed"
-//#define FOUTPUT_NAME "..\\test_compressed"
+
 
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -33,6 +30,7 @@ void init_Buffer(Buffer *bf, unsigned int buffer_size){
     bf->beginning = bf->current;
     bf->bytes_left = buffer_size;
 }
+
 void move_current(Buffer *bf, unsigned int offset){
     bf->current += offset;
     bf->bytes_left -= offset;
@@ -72,6 +70,7 @@ static unsigned int literal_length;
 //Data for testing
 unsigned long long number_of_u32 = 0;
 unsigned long long collisions = 0;
+double time_taken = 0;
 
 unsigned int find_copy_length(char *input, char *candidate, const char *limit) {//TODO: max copy length? Incremental copy?
     unsigned int length = 0;
@@ -153,25 +152,6 @@ char *write_copy(char *output, unsigned int len, unsigned long offset) {
 
 }
 
-unsigned long long get_file_size(FILE *file) {
-    unsigned long long size;
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    return size;
-
-/*    struct stat st;//TODO:?
-
-    if (stat(filename, &st) == 0)
-        return st.st_size;
-    else return -1;*/
-}
-
-void open_file_input() {
-    finput = fopen(FINPUT_NAME, "rb");
-    assert(finput != NULL);
-    finput_size = get_file_size(finput);
-}
 
 void write_dim_varint() {
     unsigned int size_varint = parse_to_varint(finput_size, output.current);
@@ -303,20 +283,16 @@ void free_hash_table() {
     free(cmp.hash_table);
 }
 
-void print_result_compression(double time_taken) {
-    unsigned char byte;
+void print_result_compression(unsigned long long fcompressed_size) {
+
+    //TODO check se un compressione ? avvenuta
 
     printf("\nDimensione file originale = %llu bytes\n", finput_size);
 
-    unsigned long long fout_size = 0;
-    if((finput = fopen(FOUTPUT_NAME, "rb") )!= NULL) {
-        fout_size = get_file_size(finput);
-        printf("Dimensione file compresso = %llu bytes\n", fout_size);
-    }
-    fclose(finput);
+    printf("Dimensione file compresso = %llu bytes\n", fcompressed_size);
 
-    double comp_ratio = (double)fout_size / (double)finput_size;
-    printf("Compression ratio = %f\n", (double)finput_size / (double)fout_size );
+    double comp_ratio = (double)fcompressed_size / (double)finput_size;
+    printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
     printf("Saving %f%%\n", (1 - comp_ratio)*100 );
 
     printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
@@ -370,14 +346,15 @@ void print_htable() {
     printf("\n\n\n-----------------------------------\n\n\n");
 }
 
-int main() {
+int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
     clock_t t;
     t = clock();
 
-    fcompressed = fopen(FOUTPUT_NAME, "wb");
-    assert(fcompressed != NULL);
-    open_file_input();
+    finput = file_input;
+    fcompressed = file_compressed;
+    finput_size = input_size;
+
     init_compressor(&cmp);
     init_buffers();//TODO passare environment in parametro
     write_dim_varint();
@@ -389,33 +366,25 @@ int main() {
 
         write_block_compressed();
 
-        //print_htable();//TODO Solo per test
+        print_htable();//TODO Solo per test
 
         reset_hash_table();
         reset_buffers();
         load_next_block();
     }
 
-    if(fclose(finput) == 0)
-        printf("Chiuso Input\n");
-
-    if(fclose(fcompressed) == 0)
-        printf("Chiuso output\n");
-
-    //TODO free all memory used
+    //TODO liberare memoria
     free_hash_table();
 
     t = clock() - t;
-    double time_taken = ((double)t)/CLOCKS_PER_SEC;
-
-    print_result_compression(time_taken);
+    time_taken = ((double)t)/CLOCKS_PER_SEC;
 
 }
 
 
 /*    int literal_length = 0;
     int copy_length = 0;
-    const char *input_file_name = "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\testWikipedia.txt";
+    const char *input_file_name = "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\wikipedia_test.txt";
     FILE *finput;
     char *input;
     char *output;
