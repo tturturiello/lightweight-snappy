@@ -13,4 +13,4 @@ typedef struct buffer Buffer;
 typedef struct source Source_buffer;
 typedef struct destination Destination_buffer;
 
-int decompress(FILE *source, FILE *destination);
+int decompress(FILE *finput, FILE *fdecompressed);

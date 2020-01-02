@@ -81,24 +81,37 @@ char* buf_next_elem(Source_buffer *buffer);
 
 float lose_data(FILE *destination, float desire_dim);
 
-int decompress(FILE *source, FILE *destination)
+int decompress(FILE *finput, FILE *fdecompressed)
 {
-    unsigned long uncomp_dim = varint_to_dim(source);
-    Buffer *buf_src = (Buffer *) buffer_constructor(BUFFER_DIM);
-    Buffer *buf_dest = (Buffer *) buffer_constructor(uncomp_dim);
+    unsigned long uncomp_dim = varint_to_dim(finput);
 
-    // carico il buffer di 64kb del contenuto del file compresso
-    flush(buf_src, source, BUFFER_DIM);
+    Source_buffer *buf_src = (Source_buffer*)malloc(sizeof(Source_buffer));
+    buf_src->mark=0;
+    memset(buf_src->array, 0, BUFFER_DIM);
+
+
+    Destination_buffer *buf_dest = (Destination_buffer*)malloc(sizeof(Destination_buffer));
+    char container[uncomp_dim];
+    memset(container, 0, uncomp_dim);
+    buf_dest->mark=0;
+    buf_dest->mark_copy=0;
+    buf_dest->array = container;
+
+    fread(buf_src->array, sizeof(char), BUFFER_DIM, finput);
+
     int count = 0;
     unsigned long readed = 0;
     do {
         count++;
-        printf("%d", count);
-        readed += decompressor(destination, source, buf_dest, buf_src);
-    } while (readed < uncomp_dim);
-    wflush((Destination_buffer *) buf_dest, buf_src, destination, source);
+        printf("%d)", count);
+        readed += decompressor(fdecompressed, finput, buf_dest, buf_src);
 
-    close_resources(source, destination);
+    } while (readed < uncomp_dim);
+
+    // scrivo il contenuto del buffer principale nel file
+    fwrite(container, sizeof(char), uncomp_dim, fdecompressed);
+
+    close_resources(finput, fdecompressed);
 
     return 0;
 }
