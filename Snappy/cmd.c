@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <assert.h>
 #include "snappy_compression.h"
+#include "snappy_decompression.h"
 
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\wikipedia_test.txt"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\wikipedia_compressed.snp"
-#define FDECOMPRESSED_NAME ""
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\alice.txt"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
+#define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
 
 unsigned long long get_file_size(FILE *file) {
     unsigned long long size;
@@ -21,10 +22,11 @@ unsigned long long get_file_size(FILE *file) {
 }
 
 int main(){
-    FILE * finput;
-    FILE * fcompressed;
-    FILE * fdecompressed;
+    FILE *finput;
+    FILE *fcompressed;
+    FILE *fdecompressed;
 
+    //------------Compressione ---------------------------------------------
     finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
     fcompressed = fopen(FCOMPRESSED_NAME, "wb");
@@ -38,11 +40,26 @@ int main(){
     if(fclose(fcompressed) == 0)
         printf("Chiuso output compressione\n");
 
-    if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL) {
+
+
+    if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL)  {
 
         print_result_compression(get_file_size(fcompressed));
-
     }
     fclose(finput);
+
+    //-----------Decompressione ---------------------------------------------
+    fcompressed = fopen(FCOMPRESSED_NAME, "rb");
+    assert(fcompressed != NULL);
+    fdecompressed = fopen(FDECOMPRESSED_NAME, "wb");
+    assert(fdecompressed != NULL);
+
+    decompress(fcompressed, fdecompressed);
+
+    if(fclose(fcompressed) == 0)
+        printf("Chiuso input decompressione\n");
+
+    if(fclose(fdecompressed) == 0)
+        printf("Chiuso output decompressione\n");
 
 }

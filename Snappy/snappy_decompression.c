@@ -106,11 +106,12 @@ int decompress(FILE *finput, FILE *fdecompressed)
     // scrivo il contenuto del buffer principale nel file
     fwrite(container, sizeof(char), uncomp_dim, fdecompressed);
 
-    close_resources(finput, fdecompressed);
+    //close_resources(finput, fdecompressed); //TODO chiudiamo fuori?
 
     return 0;
 }
 
+/*
 int main()
 {
     FILE *source;
@@ -165,6 +166,7 @@ int main()
 
     return 0;
 }
+*/
 
 int open_resources(FILE **file_in, FILE **file_out)
 {

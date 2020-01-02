@@ -366,7 +366,7 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
 
         write_block_compressed();
 
-        print_htable();//TODO Solo per test
+        //print_htable();//TODO Solo per test
 
         reset_hash_table();
         reset_buffers();
