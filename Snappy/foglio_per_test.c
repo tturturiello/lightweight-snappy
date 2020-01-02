@@ -37,7 +37,6 @@ void test_load_u32() {
     printf("%X\n", load);
 }
 
-
 char *write_single_copy(char *output, unsigned int len, unsigned int offset){
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
         *output++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
@@ -64,6 +63,7 @@ char *test_write_copy(unsigned int len, unsigned int offset, char *output) {
     output = write_single_copy(output, len, offset);
     return output;
 }
+
 
 void test_tag_literal(){
 
@@ -98,6 +98,7 @@ void test_tag_literal(){
     }
 }
 
+
 unsigned int getFileSize(FILE *finput) {
     fseek(finput, 0, SEEK_END);
     int file_size = ftell(finput);
@@ -105,8 +106,7 @@ unsigned int getFileSize(FILE *finput) {
     return file_size;
 }
 
-int main() {
-
+int test_blocks() {
     FILE *finput;
     FILE *fout;
 
@@ -135,3 +135,11 @@ int main() {
     fclose(finput);
     fclose(fout);
 }
+
+int main() {
+    printf("%u ", 64 >> 5);
+
+
+
+}
+

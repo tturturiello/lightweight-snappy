@@ -8,6 +8,7 @@
 #include "varint.h"
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
+#define MAX_HTABLE_SIZE 4096
 
 
 #define min(a,b) \
@@ -15,8 +16,22 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-static unsigned int htable_size = 4096;
-static unsigned int shift = 32 - 12; //32 - log2(4096)
+
+const int tab32[32] = {
+        0,  9,  1, 10, 13, 21,  2, 29,
+        11, 14, 16, 18, 22, 25,  3, 30,
+        8, 12, 20, 28, 15, 17, 24,  7,
+        19, 27, 23,  6, 26,  5,  4, 31};
+
+static inline int log2_32(unsigned int value) {
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    return tab32[(unsigned int) (value * 0x07C4ACDD) >> 27];
+
+}
 
 
 typedef struct buffer {
@@ -26,7 +41,7 @@ typedef struct buffer {
 } Buffer;
 
 void init_Buffer(Buffer *bf, unsigned int buffer_size){
-    bf->current = (char *)calloc(buffer_size, sizeof(char)); //TODO min?, init_buffer()?
+    bf->current = (char *)calloc(buffer_size, sizeof(char));
     bf->beginning = bf->current;
     bf->bytes_left = buffer_size;
 }
@@ -42,6 +57,9 @@ void reset_buffer(Buffer *bf) {
 
 typedef struct compressor{
     unsigned short *hash_table;
+    unsigned htable_size;
+    u32 shift;
+    u32 skip_bytes;
     u32 current_u32;
     int current_index;
     Node *copy; //TODO Che schifo?
@@ -57,7 +75,7 @@ void init_compressor_tree(Compressor *cmp){
 */
 
 void init_compressor(Compressor *cmp){
-    cmp->hash_table = (unsigned short *)calloc(htable_size, sizeof(unsigned short *));
+    cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
 }
 
 static FILE *finput;
@@ -86,7 +104,7 @@ unsigned int find_copy_length(char *input, char *candidate, const char *limit) {
 
 static inline u32 hash_bytes(u32 bytes){
     u32 kmul = 0x1e35a7bd;
-    return (bytes * kmul) >> shift;
+    return (bytes * kmul) >> cmp.shift;
 }
 
 Tree **get_hash_table(int file_size) {
@@ -158,13 +176,37 @@ void write_dim_varint() {
     output.current += size_varint;
 }
 
+/**
+ * Inizializza i buffer necessari alla compressione.
+ * Il buffer di input ha una grandezza fissa di 65536 byte.
+ * Il buffer di output deve tenere conto del fatto che il risultato della compressione
+ * pu? essere pi? grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
+ * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes.
+ * 65536 / 65 ~ 1010.
+ */
 void init_buffers() {
-    init_Buffer(&input, MAX_BLOCK_SIZE);
-    init_Buffer(&output, MAX_BLOCK_SIZE);
+    init_Buffer(&input, MAX_BLOCK_SIZE); //TODO min?
+    init_Buffer(&output, MAX_BLOCK_SIZE + 1010);
 }
 
-void load_next_block() {
+/**
+ * Questa funzione viene chiamata prima che la compressione del blocco abbia inizio.
+ * La dimensione dell'htable viene settata proporzionalmente alla dimensione del blocco
+ * da comprimere.
+ */
+static inline void set_htable_size() {
+    cmp.htable_size = 256; //Minimo
+    while(cmp.htable_size < MAX_HTABLE_SIZE & cmp.htable_size < input.bytes_left){
+        cmp.htable_size <<= 1; //? sempre una potenza di due
+    }
+    cmp.shift = 32 - log2_32(cmp.htable_size); //Shift usato dalla funzione di hash
+
+}
+
+static void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
+    set_htable_size();
+
 }
 
 int input_is_full() {
@@ -175,11 +217,11 @@ int is_block_end() {
     return input.bytes_left <= 15;//TODO, margine migliore?
 }
 
-u32 get_next_u32(const unsigned char *input) {
+static inline u32 get_next_u32(const unsigned char *input) {
     return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
 }
 
-void generate_hash_index() {
+static inline void generate_hash_index() {
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
     number_of_u32++;
@@ -193,7 +235,7 @@ int found_match_tree() {
     return 0;
 }
 
-int found_match() {
+static inline int found_match() {
 
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
     u32 candidate_u32 = get_next_u32(candidate);
@@ -208,9 +250,12 @@ int found_match() {
 
 void start_new_literal() {
     literal_length = 0;
+    cmp.skip_bytes = 32;
+
 }
 
 void append_literal() {
+    u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
     literal_length += 4;
     move_current(&input, 4);
 }
@@ -228,7 +273,7 @@ void update_hash_table_tree() {
     insert(cmp.current_u32, input.current - input.beginning , cmp.hash_table[cmp.current_index]);
 }
 
-void update_hash_table() {
+static inline void update_hash_table() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
     cmp.hash_table[hash_bytes(previous_u32)] = input.current - input.beginning - 1;
     cmp.hash_table[hash_bytes(cmp.current_u32)] = input.current - input.beginning;
@@ -264,14 +309,14 @@ void write_block_compressed() {
 }
 
 void reset_hash_table_tree() {
-    for (int i = 0; i < htable_size; i++) {
+    for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
         free_tree(cmp.hash_table[i]);
         cmp.hash_table[i] = create_tree();
     }
 }
 
 void reset_hash_table() {
-    memset(cmp.hash_table, 0, htable_size * sizeof(unsigned short *));
+    memset(cmp.hash_table, 0, MAX_HTABLE_SIZE * sizeof(unsigned short *));
 }
 
 void reset_buffers() {
@@ -332,15 +377,13 @@ void compress_next_block() {
             update_hash_table();
             append_literal();
         }
-
     }
     exhaust_input();
     emit_literal();
 }
 
-
 void print_htable() {
-    for (int i = 0; i < htable_size; ++i) {
+    for (int i = 0; i < cmp.htable_size; ++i) {
         printf("%hu\t", cmp.hash_table[i]);
     }
     printf("\n\n\n-----------------------------------\n\n\n");
@@ -357,12 +400,12 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
 
     init_compressor(&cmp);
     init_buffers();//TODO passare environment in parametro
+
     write_dim_varint();
     load_next_block();
 
     while(input_is_full()){
         compress_next_block();
-        printf("Compresso blocco\n");
 
         write_block_compressed();
 
