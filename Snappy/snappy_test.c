@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdint.h>
 #include "snappy_compression.h"
+#include "snappy_decompression.h"
 
 unsigned int dim[] ={100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000, 200000, 500000, 1000000, 2000000};
 
@@ -39,15 +40,14 @@ void create_test_files(FILE *source) {
 
 int main(){
 
-/*    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
-    assert(source!=NULL);
-    create_test_files(source);*/
+//    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
+//    assert(source!=NULL);
+//    create_test_files(source);
 
 
     char finput_name[300];
     char fcompressed_name[300];
-
-
+    char fdecompressed_name[300];
 
 
     FILE *finput;
@@ -82,5 +82,34 @@ int main(){
             printf("------------------------------------------------------\n\n");
         }
 
+    }
+
+    for (int i = 0; i < 13; ++i) {
+        for (int j = 1; j <= 5; ++j) {
+
+            sprintf(finput_name, "..\\Standard_test\\%ub%d.snp", dim[i], j);
+            sprintf(fdecompressed_name,
+                    "..\\Standard_test\\%ub%d.csv", dim[i], j);
+
+            finput = fopen(finput_name, "rb");
+            assert(finput != NULL);
+            fdecompressed = fopen(fdecompressed_name, "wb");
+            assert(fdecompressed != NULL);
+
+            snappy_decompress(finput, fdecompressed);
+
+            if (fclose(finput) == 0)
+                printf("Chiuso input compressione\n");
+
+            if (fclose(fdecompressed) == 0)
+                printf("Chiuso output decompressione\n");
+
+            if ((fdecompressed = fopen(fdecompressed_name, "rb")) != NULL) {
+                print_result_decompression(get_file_size(fdecompressed), get_file_size(finput));
+            }
+            fclose(finput);
+
+            printf("------------------------------------------------------\n\n");
+        }
     }
 }
