@@ -2,10 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/stat.h>
 #include <time.h>
 #include <windows.h>
-#include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
@@ -14,6 +12,7 @@
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
+
 
 static const int tab32[32] = {
         0,  9,  1, 10, 13, 21,  2, 29,

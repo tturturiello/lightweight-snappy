@@ -7,8 +7,8 @@
 
 
 //------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\Introduction_to_Data_Compression.pdf"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\pdf_compressed.snp"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\100b5"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\100b5.snp"
 #define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
 
 
@@ -36,7 +36,7 @@ int main(){
     FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
-/*
+
     //------------Compressione ---------------------------------------------
     finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
@@ -55,9 +55,9 @@ int main(){
         print_result_compression(get_file_size(fcompressed));
     }
     fclose(finput);
-*/
 
 
+/*
     //-----------Decompressione ---------------------------------------------
     fcompressed = fopen(FCOMPRESSED_NAME, "rb");
     assert(fcompressed != NULL);
@@ -71,5 +71,5 @@ int main(){
 
     if(fclose(fdecompressed) == 0)
         printf("Chiuso output decompressione\n");
-
+*/
 }

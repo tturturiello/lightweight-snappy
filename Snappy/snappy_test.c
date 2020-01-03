@@ -57,9 +57,9 @@ int main(){
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
 
-            sprintf(finput_name, "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\Standard_test\\%ub%d", dim[i], j);
+            sprintf(finput_name, "..\\Standard_test\\%ub%d", dim[i], j);
             sprintf(fcompressed_name,
-                    "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\Standard_test\\%ub%d.snp", dim[i], j);
+                    "..\\Standard_test\\%ub%d.snp", dim[i], j);
 
             finput = fopen(finput_name, "rb");
             assert(finput != NULL);
