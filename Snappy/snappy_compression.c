@@ -9,15 +9,12 @@
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
 #define MAX_HTABLE_SIZE 4096
-
-
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-
-const int tab32[32] = {
+static const int tab32[32] = {
         0,  9,  1, 10, 13, 21,  2, 29,
         11, 14, 16, 18, 22, 25,  3, 30,
         8, 12, 20, 28, 15, 17, 24,  7,
@@ -30,7 +27,6 @@ static inline int log2_32(unsigned int value) {
     value |= value >> 8;
     value |= value >> 16;
     return tab32[(unsigned int) (value * 0x07C4ACDD) >> 27];
-
 }
 
 typedef struct buffer {
@@ -67,10 +63,9 @@ void move_current(Buffer *bf, unsigned int offset){
  * il buffer
  * @param bf il buffer da resettare
  */
-void reset_buffer(Buffer *bf) {
+static void reset_buffer(Buffer *bf) {
     bf->current = bf->beginning;
 }
-
 
 typedef struct compressor{
     unsigned short *hash_table;
@@ -79,6 +74,7 @@ typedef struct compressor{
     u32 skip_bytes;
     u32 current_u32;
     int current_index;
+    unsigned int literal_length;
     Node *copy; //TODO Che schifo?
 } Compressor;
 
@@ -97,7 +93,7 @@ void init_compressor_tree(Compressor *cmp){
  * in compressione varia proporzionalmente alla dimensione del blocco in compressione
  * @param cmp il Compressor da inizializzare
  */
-void init_compressor(Compressor *cmp){
+static void init_compressor(Compressor *cmp){
     cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
 }
 
@@ -107,16 +103,17 @@ static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
 static Compressor cmp;
-static unsigned int literal_length;
+static unsigned int literal_length;//TODO in compressor
 //Data for testing
 unsigned long long number_of_u32 = 0;
 unsigned long long collisions = 0;
 double time_taken = 0;
 
-unsigned int find_copy_length(char *input, char *candidate, const char *limit) {//TODO: max copy length? Incremental copy?
+static inline unsigned int find_copy_length(char * current, char *candidate) {//TODO: max copy length? Incremental copy?
+    const char *limit =  input.current + input.bytes_left;
     unsigned int length = 0;
-    for(;input <= limit; input++, candidate++){
-        if(*input==*candidate){
+    for(; current <= limit; current++, candidate++){
+        if(*current == *candidate){
             length++;
         } else {
             return length;
@@ -135,17 +132,18 @@ Tree **get_hash_table(int file_size) {
     return hash_table;
 }
 
-char *write_literal(const char *input, char *output, unsigned int len) {
+static inline void write_literal(const char *start_of_literal, unsigned int len) {
 
+    char *current_out = output.current;
     unsigned int len_minus_1 = len-1;
     if(len_minus_1 < 60) {
-        *output++ = (len_minus_1 << 2u) & 0xFF;
+        *current_out++ = (len_minus_1 << 2u) & 0xFF;
     } else {
-        char *tag_byte = output++; //Lascio lo spazio per il tag byte
+        char *tag_byte = current_out++; //Lascio lo spazio per il tag byte
         unsigned int code_literal = 59; //identifica quanti sono i byte utilizzati per codificare len-1
 
         while(len_minus_1 > 0){
-            *output++ = len_minus_1 & 0xFF;
+            *current_out++ = len_minus_1 & 0xFF;
             len_minus_1 = len_minus_1 >> 8;
             code_literal++;
         }
@@ -153,53 +151,47 @@ char *write_literal(const char *input, char *output, unsigned int len) {
         assert(code_literal <= 64);
         *tag_byte = code_literal << 2;
     }
-
-    //printf("Literal di dimensione %d\n", len);
-    for (int i = 0; i < len; ++i) {//TODO memcpy()?
-        *output++ = input[i];
-        //printf("[%d]: %X ",i, input[i]);
-    }
-    //printf("\n");
-    return output;
+    memcpy(current_out, start_of_literal, len); //Copio il literal
+    current_out += len;
+    move_current(&output, current_out - output.current);
 
 }
 
-char *write_single_copy(char *output, unsigned int len, unsigned int offset){
+static inline void write_single_copy(unsigned int len, unsigned int offset){
+    char *current_out = output.current;
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
-        *output++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
-        *output++ = offset & 0xFF;
+        *current_out++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
+        *current_out++ = offset & 0xFF;
     } else if ( offset < 65536) {//Copy 10: 6 bits for len-1 and 16 bits for offset //TODO: assert?
-        *output++ = ((len - 1)  << 2)  | 2;
-        *output++ = offset & 0xFF;
-        *output++ = (offset >> 8) & 0xFF;
+        *current_out++ = ((len - 1) << 2) | 2;
+        *current_out++ = offset & 0xFF;
+        *current_out++ = (offset >> 8) & 0xFF;
         //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
     }
-    return output;
+    move_current(&output, current_out - output.current);
 }
 
-char *write_copy(char *output, unsigned int len, unsigned long offset) {
+static inline void write_copy(unsigned int len, unsigned long offset) {
 
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
-        output = write_single_copy(output, 64, offset); //64 ? la max len per una copia
+        write_single_copy(64, offset); //64 ? la max len per una copia
         len-=64;
     }
     if(len > 64) { //64 < len < 68
-        output = write_single_copy(output, 60, offset);
+        write_single_copy(60, offset);
         len-=60;
     }
 
-    output = write_single_copy(output, len, offset);
-    return output;
-
+    write_single_copy(len, offset);
 }
 
 /**
  * Scrive sul buffer di output la dimensione del file di input in formato varint.
  * Quest'informazione sar? poi utilizzata in decompressione
  */
-void write_dim_varint() {
+static void write_dim_varint() {
     unsigned int size_varint = parse_to_varint(finput_size, output.current);
-    output.current += size_varint;
+    move_current(&output, size_varint);
 }
 
 /**
@@ -212,7 +204,7 @@ void write_dim_varint() {
  * massima del file in compressione ? 4 Gb, che occupa 5 bytes in formato varint.
  *
  */
-void init_buffers() {
+static void init_buffers() {
     init_Buffer(&input, MAX_BLOCK_SIZE); //TODO min?
     init_Buffer(&output, MAX_BLOCK_SIZE + 1010 + 5);
 }
@@ -235,7 +227,7 @@ static inline void set_htable_size() {
  * Legge il prossimo blocco dal file in input e chiama set_htable_size() per aggiornare
  * la dimensione dell'hash table. Il blocco letto avr? dimensione <= 65536.
  */
-static void load_next_block() {
+static inline void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
     set_htable_size();
 }
@@ -244,7 +236,7 @@ static void load_next_block() {
  * Controlla se l'input buffer in compressione ? pieno o vuoto.
  * @return 1 se l'input buffer ? pieno, 0 altrimenti
  */
-int input_is_full() {
+static inline int input_is_full() {
     return input.bytes_left != 0;
 }
 
@@ -254,7 +246,7 @@ int input_is_full() {
  * meno di quelli che andrebbero consumati alla prossima iterazione
  * @return 1 se l'input ? quasi esaurito
  */
-int is_block_end() {
+static inline int is_block_end() {
 
     return input.bytes_left < (cmp.skip_bytes++ >> 5) + 15;//TODO, margine migliore?
 }
@@ -278,7 +270,7 @@ static inline void generate_hash_index() {
     number_of_u32++;//TODO togliere?
 }
 
-int found_match_tree() {
+static inline int found_match_tree() {
 
     if ( !is_empty(cmp.hash_table[cmp.current_index]) ) {
         return (cmp.copy = find(cmp.current_u32, cmp.hash_table[cmp.current_index])) != NULL;//Salvo anche il nodo copia
@@ -299,26 +291,26 @@ static inline int found_match() {
 
 }
 
-void start_new_literal() {
+static inline void start_new_literal() {
     literal_length = 0;
     cmp.skip_bytes = 32;
 
 }
 
-void append_literal() {
+static inline void append_literal() {
     u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
     literal_length += bytes_to_skip;
     move_current(&input, bytes_to_skip);
 }
 
-void exhaust_input() {
+static inline void exhaust_input() {
 
     literal_length += input.bytes_left;
     move_current(&input, input.bytes_left);
 
 }
 
-void update_hash_table_tree() {
+static inline void update_hash_table_tree() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
     insert(previous_u32, input.current - input.beginning - 1, cmp.hash_table[hash_bytes(previous_u32)]);
     insert(cmp.current_u32, input.current - input.beginning , cmp.hash_table[cmp.current_index]);
@@ -330,53 +322,126 @@ static inline void update_hash_table() {
     cmp.hash_table[hash_bytes(cmp.current_u32)] = input.current - input.beginning;
 }
 
-void emit_literal() {
+static inline void emit_literal() {
     if(literal_length > 0)
-        output.current = write_literal(input.current - literal_length, output.current, literal_length);
+        write_literal(input.current - literal_length, literal_length);
 }
 
-void emit_copy_tree() {
+static inline void emit_copy_tree() {
     char *candidate = input.beginning + cmp.copy->offset;
-    int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4, input.current + input.bytes_left);
-    output.current = write_copy( output.current, copy_length, input.current - candidate);
+
+    int copy_length = 4 + find_copy_length(input.current + 4,candidate + 4);
+    write_copy(copy_length, input.current - candidate);
     cmp.copy->offset = input.current - input.beginning; //Aggiorno l'offset della copia
     printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
 
-void emit_copy() {
+static inline void emit_copy() {
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index];
-    int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4, input.current + input.bytes_left);
-    output.current = write_copy( output.current, copy_length, input.current - candidate);
+    int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);
+    write_copy(copy_length, input.current - candidate);
     cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
     //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
 
-void write_block_compressed() {
+static inline void write_block_compressed() {
     fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
 }
 
-void reset_hash_table_tree() {
+static inline void reset_hash_table_tree() {
     for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
         free_tree(cmp.hash_table[i]);
         cmp.hash_table[i] = create_tree();
     }
 }
 
-void reset_hash_table() {
+static inline void reset_hash_table() {
     memset(cmp.hash_table, 0, MAX_HTABLE_SIZE * sizeof(unsigned short *));
 }
 
-void reset_buffers() {
+static inline void reset_buffers() {
     reset_buffer(&input);
     reset_buffer(&output);
 }
 
-void free_hash_table() {
+static void free_hash_table() {
     free(cmp.hash_table);
+}
+
+static void free_buffers() {
+    free(input.beginning);
+    free(output.beginning);
+}
+
+static inline void compress_next_block() {
+
+    start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
+    append_literal();//Ignoro i primi 4 bytes
+
+    while(!is_block_end()){
+
+        generate_hash_index();
+
+        if(found_match()){//TODO: Heuristic match skipping
+            emit_literal();
+            start_new_literal();
+            emit_copy();
+        } else {
+            update_hash_table();
+            append_literal();
+        }
+    }
+    exhaust_input();
+    emit_literal();
+}
+
+void print_htable() {
+    for (int i = 0; i < cmp.htable_size; ++i) {
+        printf("%hu\t", cmp.hash_table[i]);
+    }
+    printf("\n\n\n-----------------------------------\n\n\n");
+}
+
+
+
+int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
+
+    clock_t t;
+    t = clock();
+
+    finput = file_input;
+    fcompressed = file_compressed;
+    finput_size = input_size;
+
+    init_compressor(&cmp);
+    init_buffers();//TODO passare environment in parametro
+
+    write_dim_varint();
+    load_next_block();
+
+    while(input_is_full()){
+        compress_next_block();
+
+        write_block_compressed();
+
+        //print_htable();//TODO Solo per test
+
+        reset_hash_table();
+        reset_buffers();
+        load_next_block();
+    }
+
+
+    free_hash_table();
+    free_buffers();
+
+    t = clock() - t;
+    time_taken = ((double)t)/CLOCKS_PER_SEC;
+
 }
 
 void print_result_compression(unsigned long long fcompressed_size) {
@@ -411,137 +476,5 @@ void print_result_compression(unsigned long long fcompressed_size) {
 
 }
 
-void compress_next_block() {
 
-    start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
-    append_literal();//Ignoro i primi 4 bytes
-
-    while(!is_block_end()){
-
-        generate_hash_index();
-
-        if(found_match()){//TODO: Heuristic match skipping
-            emit_literal();
-            start_new_literal();
-            emit_copy();
-        } else {
-            update_hash_table();
-            append_literal();
-        }
-    }
-    exhaust_input();
-    emit_literal();
-}
-
-void print_htable() {
-    for (int i = 0; i < cmp.htable_size; ++i) {
-        printf("%hu\t", cmp.hash_table[i]);
-    }
-    printf("\n\n\n-----------------------------------\n\n\n");
-}
-
-int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
-
-    clock_t t;
-    t = clock();
-
-    finput = file_input;
-    fcompressed = file_compressed;
-    finput_size = input_size;
-
-    init_compressor(&cmp);
-    init_buffers();//TODO passare environment in parametro
-
-    write_dim_varint();
-    load_next_block();
-
-    while(input_is_full()){
-        compress_next_block();
-
-        write_block_compressed();
-
-        //print_htable();//TODO Solo per test
-
-        reset_hash_table();
-        reset_buffers();
-        load_next_block();
-    }
-
-    //TODO liberare memoria
-    free_hash_table();
-
-    t = clock() - t;
-    time_taken = ((double)t)/CLOCKS_PER_SEC;
-
-}
-
-
-/*    int literal_length = 0;
-    int copy_length = 0;
-    const char *input_file_name = "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\wikipedia_test.txt";
-    FILE *finput;
-    char *input;
-    char *output;
-    const char * beginning;
-    const char * out_beginning;
-    char *input_limit;
-
-
-    Tree *hash_table[htable_size];
-    for (int i = 0; i < htable_size; i++) {
-        hash_table[i] = create_tree();
-    }
-
-    if((finput = fopen(input_file_name, "r") )!= NULL){
-        unsigned int file_size = getFileSize(input_file_name);
-        input = (char *)calloc(file_size, sizeof(char));
-        output = (char *)malloc(sizeof(char)*file_size);
-        printf("LETTI:%d\n", file_size = fread(input, sizeof(char), file_size, finput) );
-        printf("Dimesnione file: %d bytes, %d u32\n", file_size, file_size/4);
-        beginning = input;
-        out_beginning = output;
-        input_limit = input + file_size;
-
-        output = write_dim_varint(file_size, output);
-
-    } else {
-        puts("Errore apertura file");
-        return 1;
-    }
-    fclose(finput);
-
-    u32 current_u32 ;
-    int index = 0;
-    Node *copy;
-    char *candidate;
-    while( input+4 < input_limit ) {
-        current_u32 = get_next_u32(input, input_limit);
-        index = hash_bytes(current_u32);
-        if (is_empty(hash_table[index]) | ((copy = find(current_u32, hash_table[index]) ) == NULL)) {
-            //printf("%X literal\n", current_u32);
-            //output[literal_length++] = current_u32; //Aggiungo il literal in output
-            insert(current_u32, input - beginning , hash_table[index]);
-            literal_length+=4;
-            copy_length = 0;
-        } else {
-
-            output = write_literal(input - literal_length, output, literal_length);
-            literal_length = 0;
-            candidate = beginning + copy->offset;
-            copy_length = find_copy_length(input+4, candidate + 4, input_limit);
-            printf("%X copy of offset = %d and length = %d\n", current_u32, input - candidate, copy_length + 4);
-            output = write_copy( output, copy_length + 4, input - candidate);
-        }
-        input+= 4 + copy_length;
-    }
-    output = write_literal(input - literal_length, output, literal_length);
-
-
-    write_file_compressed(out_beginning, output);
-    print_result_compression(finput, output, beginning, out_beginning, input_limit);*/
-/*    puts("\n");
-for (int i = 0; i < htable_size; ++i) {
-    print_tree_inorder(hash_table[i]);
-    printf("\n");
-}*/
 
