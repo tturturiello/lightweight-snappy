@@ -68,7 +68,7 @@ static void reset_buffer(Buffer *bf) {
 }
 
 typedef struct compressor{
-    unsigned short *hash_table;
+    Tree **hash_table;
     unsigned htable_size;
     u32 shift;
     u32 skip_bytes;
@@ -78,24 +78,16 @@ typedef struct compressor{
     Node *copy; //TODO Che schifo?
 } Compressor;
 
-/*
+
 void init_compressor_tree(Compressor *cmp){
-    cmp->hash_table = (Tree **)malloc(sizeof(Tree*)*htable_size);
-    for (int i = 0; i < htable_size; i++) {
+    cmp->hash_table = (Tree **)malloc(sizeof(Tree*)*MAX_HTABLE_SIZE);
+    for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
         cmp->hash_table[i] = create_tree();
     }
 }
-*/
 
-/**
- * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
- * N.B: anche se la memoria allocata ? una costante, la dimensione dell'hash table utilizzata
- * in compressione varia proporzionalmente alla dimensione del blocco in compressione
- * @param cmp il Compressor da inizializzare
- */
-static void init_compressor(Compressor *cmp){
-    cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
-}
+
+
 
 static FILE *finput;
 static FILE *fcompressed;
@@ -128,10 +120,6 @@ static inline u32 hash_bytes(u32 bytes){
     return (bytes * kmul) >> cmp.shift;
 }
 
-Tree **get_hash_table(int file_size) {
-    Tree **hash_table = (Tree **)malloc(sizeof(Tree*)*10);
-    return hash_table;
-}
 
 static inline void write_literal(const char *start_of_literal, unsigned int len) {
 
@@ -279,18 +267,6 @@ static inline int found_match_tree() {
     return 0;
 }
 
-static inline int found_match() {
-
-    char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
-    u32 candidate_u32 = get_next_u32(candidate);
-    if(candidate_u32 == cmp.current_u32){
-        return 1;
-    } else if( cmp.hash_table[cmp.current_index] != 0 ){
-        collisions++;
-    }
-    return 0;
-
-}
 
 static inline void start_new_literal() {
     literal_length = 0;
@@ -317,11 +293,6 @@ static inline void update_hash_table_tree() {
     insert(cmp.current_u32, input.current - input.beginning , cmp.hash_table[cmp.current_index]);
 }
 
-static inline void update_hash_table() {
-    u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
-    cmp.hash_table[hash_bytes(previous_u32)] = input.current - input.beginning - 1;
-    cmp.hash_table[hash_bytes(cmp.current_u32)] = input.current - input.beginning;
-}
 
 static inline void emit_literal() {
     if(literal_length > 0)
@@ -334,35 +305,24 @@ static inline void emit_copy_tree() {
     int copy_length = 4 + find_copy_length(input.current + 4,candidate + 4);
     write_copy(copy_length, input.current - candidate);
     cmp.copy->offset = input.current - input.beginning; //Aggiorno l'offset della copia
-    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
-
-    move_current(&input, copy_length);
-}
-
-static inline void emit_copy() {
-    char *candidate = input.beginning + cmp.hash_table[cmp.current_index];
-    int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);
-    write_copy(copy_length, input.current - candidate);
-    cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
     //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
 
+
 static inline void write_block_compressed() {
     fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
 }
 
+
 static inline void reset_hash_table_tree() {
-    for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
+    for (int i = 0; i < cmp.htable_size; i++) {
         free_tree(cmp.hash_table[i]);
         cmp.hash_table[i] = create_tree();
     }
 }
 
-static inline void reset_hash_table() {
-    memset(cmp.hash_table, 0, MAX_HTABLE_SIZE * sizeof(unsigned short *));
-}
 
 static inline void reset_buffers() {
     reset_buffer(&input);
@@ -382,7 +342,7 @@ static void init_environment(FILE *file_input, unsigned long long int input_size
     finput = file_input;
     fcompressed = file_compressed;
     finput_size = input_size;
-    init_compressor(&cmp);
+    init_compressor_tree(&cmp);
     init_buffers();
 }
 
@@ -394,12 +354,12 @@ static inline void compress_next_block() {
     while(!is_block_end()){
 
         generate_hash_index();
-        if(found_match()){
+        if(found_match_tree()){
             emit_literal();
             start_new_literal();
-            emit_copy();
+            emit_copy_tree();
         } else {
-            update_hash_table();
+            update_hash_table_tree();
             append_literal();
         }
     }
@@ -407,16 +367,16 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
-void print_htable() {
+void print_htable_tree() {
     for (int i = 0; i < cmp.htable_size; ++i) {
-        printf("%hu\t", cmp.hash_table[i]);
+        print_tree_inorder(cmp.hash_table[i]);
     }
     printf("\n\n\n-----------------------------------\n\n\n");
 }
 
 
 
-int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
+int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
     clock_t t;
     t = clock();
@@ -428,7 +388,7 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
     while(input_is_full()){
         compress_next_block();
         write_block_compressed();
-        reset_hash_table();
+        reset_hash_table_tree();
         reset_buffers();
         load_next_block();
     }
@@ -440,7 +400,7 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
 
 }
 
-void print_result_compression(unsigned long long fcompressed_size) {
+void print_result_compression_tree(unsigned long long fcompressed_size) {
 
     //TODO check se un compressione ? avvenuta
 
@@ -453,8 +413,6 @@ void print_result_compression(unsigned long long fcompressed_size) {
     printf("Saving %f%%\n", (1 - comp_ratio)*100 );
 
     printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
-    printf("Numero di collisioni = %llu\n", collisions );
-    printf("In percentuale: %f%%\n", ((double)collisions / (double)number_of_u32)*100 );
 
     printf("\nCompression took %f seconds to execute\n", time_taken);
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
