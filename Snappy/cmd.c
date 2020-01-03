@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <assert.h>
-//#include "snappy_compression.h"
-#include "snappy_compression_tree.h"
+#include "snappy_compression.h"
+//#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
 
 
 
 //------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\immagine.tiff"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\tiff_compressed_tree.snp"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Files_test\\Introduction_to_Data_Compression.pdf"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\pdf_compressed.snp"
 #define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
 
 
@@ -43,7 +43,7 @@ int main(){
     fcompressed = fopen(FCOMPRESSED_NAME, "wb");
     assert(fcompressed != NULL);
 
-    snappy_compress_tree(finput, get_file_size(finput), fcompressed);
+    snappy_compress(finput, get_file_size(finput), fcompressed);
 
     if(fclose(finput) == 0)
         printf("Chiuso input compressione\n");
@@ -52,7 +52,7 @@ int main(){
         printf("Chiuso output compressione\n");
 
     if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL)  {
-        print_result_compression_tree(get_file_size(fcompressed));
+        print_result_compression(get_file_size(fcompressed));
     }
     fclose(finput);
 */

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <windows.h>
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
@@ -75,17 +76,8 @@ typedef struct compressor{
     u32 current_u32;
     int current_index;
     unsigned int literal_length;
-    Node *copy; //TODO Che schifo?
 } Compressor;
 
-/*
-void init_compressor_tree(Compressor *cmp){
-    cmp->hash_table = (Tree **)malloc(sizeof(Tree*)*htable_size);
-    for (int i = 0; i < htable_size; i++) {
-        cmp->hash_table[i] = create_tree();
-    }
-}
-*/
 
 /**
  * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
@@ -103,7 +95,6 @@ static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
 static Compressor cmp;
-static unsigned int literal_length;//TODO in compressor
 //Data for testing
 unsigned long long number_of_u32 = 0;
 unsigned long long collisions = 0;
@@ -126,11 +117,6 @@ static inline unsigned int find_copy_length(char * current, char *candidate) {//
 static inline u32 hash_bytes(u32 bytes){
     u32 kmul = 0x1e35a7bd;
     return (bytes * kmul) >> cmp.shift;
-}
-
-Tree **get_hash_table(int file_size) {
-    Tree **hash_table = (Tree **)malloc(sizeof(Tree*)*10);
-    return hash_table;
 }
 
 static inline void write_literal(const char *start_of_literal, unsigned int len) {
@@ -271,14 +257,6 @@ static inline void generate_hash_index() {
     number_of_u32++;//TODO togliere?
 }
 
-static inline int found_match_tree() {
-
-    if ( !is_empty(cmp.hash_table[cmp.current_index]) ) {
-        return (cmp.copy = find(cmp.current_u32, cmp.hash_table[cmp.current_index])) != NULL;//Salvo anche il nodo copia
-    }
-    return 0;
-}
-
 static inline int found_match() {
 
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
@@ -293,28 +271,22 @@ static inline int found_match() {
 }
 
 static inline void start_new_literal() {
-    literal_length = 0;
+    cmp.literal_length = 0;
     cmp.skip_bytes = 32;
 
 }
 
 static inline void append_literal() {
     u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
-    literal_length += bytes_to_skip;
+    cmp.literal_length += bytes_to_skip;
     move_current(&input, bytes_to_skip);
 }
 
 static inline void exhaust_input() {
 
-    literal_length += input.bytes_left;
+    cmp.literal_length += input.bytes_left;
     move_current(&input, input.bytes_left);
 
-}
-
-static inline void update_hash_table_tree() {
-    u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
-    insert(previous_u32, input.current - input.beginning - 1, cmp.hash_table[hash_bytes(previous_u32)]);
-    insert(cmp.current_u32, input.current - input.beginning , cmp.hash_table[cmp.current_index]);
 }
 
 static inline void update_hash_table() {
@@ -324,19 +296,8 @@ static inline void update_hash_table() {
 }
 
 static inline void emit_literal() {
-    if(literal_length > 0)
-        write_literal(input.current - literal_length, literal_length);
-}
-
-static inline void emit_copy_tree() {
-    char *candidate = input.beginning + cmp.copy->offset;
-
-    int copy_length = 4 + find_copy_length(input.current + 4,candidate + 4);
-    write_copy(copy_length, input.current - candidate);
-    cmp.copy->offset = input.current - input.beginning; //Aggiorno l'offset della copia
-    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
-
-    move_current(&input, copy_length);
+    if(cmp.literal_length > 0)
+        write_literal(input.current - cmp.literal_length, cmp.literal_length);
 }
 
 static inline void emit_copy() {
@@ -351,13 +312,6 @@ static inline void emit_copy() {
 
 static inline void write_block_compressed() {
     fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
-}
-
-static inline void reset_hash_table_tree() {
-    for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
-        free_tree(cmp.hash_table[i]);
-        cmp.hash_table[i] = create_tree();
-    }
 }
 
 static inline void reset_hash_table() {
@@ -414,12 +368,16 @@ void print_htable() {
     printf("\n\n\n-----------------------------------\n\n\n");
 }
 
-
-
 int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
-    clock_t t;
-    t = clock();
+    //clock_t t;
+    //t = clock();
+
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
 
     init_environment(file_input, input_size, file_compressed);
     write_dim_varint();
@@ -435,8 +393,10 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
     free_hash_table();
     free_buffers();
 
-    t = clock() - t;
-    time_taken = ((double)t)/CLOCKS_PER_SEC;
+    //t = clock() - t;
+    //time_taken =((double)t)/CLOCKS_PER_SEC;
+    QueryPerformanceCounter(&end);
+    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
 
 }
 
@@ -458,18 +418,6 @@ void print_result_compression(unsigned long long fcompressed_size) {
 
     printf("\nCompression took %f seconds to execute\n", time_taken);
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
-
-
-/*    puts("\n\nBuffer in input");
-    for(int i = 0; beginning + i < input_limit; i++){
-        printf("%3d: %X ", i, *(beginning+i));
-    }
-
-    puts("\n\nBuffer in output");
-    for(int i = 0; out_beginning + i <= output; i++){
-        printf("%X ", *(out_beginning+i));
-    }*/
-
 }
 
 
