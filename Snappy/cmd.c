@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "snappy_compression.h"
+#include "snappy_decompression.h"
 
 
 /*
@@ -34,7 +35,6 @@ int main(){
     FILE *fcompressed;
     FILE *fdecompressed;
 
-    /*
     //------------Compressione ---------------------------------------------
     finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
@@ -56,10 +56,10 @@ int main(){
         print_result_compression(get_file_size(fcompressed));
     }
     fclose(finput);
-     */
 
+/*
     //-----------Decompressione ---------------------------------------------
-/*    fcompressed = fopen(FCOMPRESSED_NAME, "rb");
+    fcompressed = fopen(FCOMPRESSED_NAME, "rb");
     assert(fcompressed != NULL);
     fdecompressed = fopen(FDECOMPRESSED_NAME, "wb");
     assert(fdecompressed != NULL);
@@ -70,6 +70,6 @@ int main(){
         printf("Chiuso input decompressione\n");
 
     if(fclose(fdecompressed) == 0)
-        printf("Chiuso output decompressione\n");*/
-
+        printf("Chiuso output decompressione\n");
+*/
 }

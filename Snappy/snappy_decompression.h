@@ -5,10 +5,10 @@
 #ifndef SNAPPY_SNAPPY_DECOMPRESSION_H
 #define SNAPPY_SNAPPY_DECOMPRESSION_H
 
+/*
 typedef union convertion Converter;
 typedef struct buffer Buffer;
-typedef struct source Source_buffer;
-typedef struct destination Destination_buffer;
+ */
 
 int snappy_decompress(FILE *file_input, FILE *file_compressed);
 
