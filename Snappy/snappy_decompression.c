@@ -102,7 +102,6 @@ int snappy_decompress(FILE *file_input, FILE *file_compressed)
     unsigned long readed = 0;
     do {
         count++;
-        printf("%d)", count);
         readed += decompressor(file_input, buf_dest, buf_src);
 
     } while (readed < uncomp_dim);
