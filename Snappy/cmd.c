@@ -36,7 +36,7 @@ int main(){
     FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
-
+/*
     //------------Compressione ---------------------------------------------
     finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
@@ -51,14 +51,13 @@ int main(){
     if(fclose(fcompressed) == 0)
         printf("Chiuso output compressione\n");
 
-
-
     if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL)  {
         print_result_compression_tree(get_file_size(fcompressed));
     }
     fclose(finput);
+*/
 
-/*
+
     //-----------Decompressione ---------------------------------------------
     fcompressed = fopen(FCOMPRESSED_NAME, "rb");
     assert(fcompressed != NULL);
@@ -72,5 +71,5 @@ int main(){
 
     if(fclose(fdecompressed) == 0)
         printf("Chiuso output decompressione\n");
-*/
+
 }
