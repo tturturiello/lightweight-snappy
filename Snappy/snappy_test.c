@@ -54,7 +54,7 @@ int main(){
 
 
 
-/*    FILE *finput;
+   FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
     FILE *fcsv;
