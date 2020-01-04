@@ -7,8 +7,8 @@
 
 
 //------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\100b5"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\100b5.snp"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\500b5"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\500b5.snp"
 #define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
 
 

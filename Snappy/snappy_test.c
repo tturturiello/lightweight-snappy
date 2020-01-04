@@ -24,8 +24,9 @@ unsigned long long get_file_size(FILE *file) {
 void create_test_files(FILE *source) {
     char test_name[60];
     char buffer[2000000];
-    for (int i = 0; i < 13; ++i) {
 
+    for (int i = 0; i < 13; ++i) {
+        fseek(source, 0, SEEK_SET);//Torno all'inizio del file
         sprintf(test_name, "..\\Standard_test\\%ub5", dim[i]);
         FILE *test = fopen(test_name, "wb");
         assert(test != NULL);
@@ -39,10 +40,10 @@ void create_test_files(FILE *source) {
 
 int main(){
 
-/*    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
+    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
     assert(source!=NULL);
-    create_test_files(source);*/
-
+    create_test_files(source);
+    fclose(source);
 
     char finput_name[300];
     char fcompressed_name[300];
@@ -50,7 +51,7 @@ int main(){
 
 
 
-    FILE *finput;
+/*    FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
 
@@ -82,5 +83,5 @@ int main(){
             printf("------------------------------------------------------\n\n");
         }
 
-    }
+    }*/
 }

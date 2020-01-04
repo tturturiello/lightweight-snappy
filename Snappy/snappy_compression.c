@@ -103,7 +103,7 @@ double time_taken = 0;
 static inline unsigned int find_copy_length(char * current, char *candidate) {//TODO: max copy length? Incremental copy?
     const char *limit =  input.current + input.bytes_left;
     unsigned int length = 0;
-    for(; current <= limit; current++, candidate++){
+    for(; current < limit; current++, candidate++){
         if(*current == *candidate){
             length++;
         } else {
@@ -137,6 +137,11 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
         assert(code_literal <= 64);
         *tag_byte = code_literal << 2;
     }
+/*    printf("Literal of len = %u\n", len);
+    for (int i = 0; i < len; ++i) {
+        printf("%X ", start_of_literal[i]);
+    }
+    puts("");*///TODO
     memcpy(current_out, start_of_literal, len); //Copio il literal
     current_out += len;
     move_current(&output, current_out - output.current);
@@ -234,7 +239,7 @@ static inline int input_is_full() {
  */
 static inline int is_block_end() {
 
-    return input.bytes_left < (cmp.skip_bytes++ >> 5) + 15;//TODO, margine migliore?
+    return input.bytes_left < (cmp.skip_bytes >> 5) + 15;//TODO, margine migliore?
 }
 
 /**
@@ -251,6 +256,8 @@ static inline u32 get_next_u32(const unsigned char *input) {
  * per accedere all'hash table. Le informazioni sono salvate nei rispettivi campi del Compressor
  */
 static inline void generate_hash_index() {
+
+    //printf("%X %X %X %X\n", (char)input.current[0],(char)input.current[1], (char)input.current[2], (char)input.current[3]);//TODO
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
     number_of_u32++;//TODO togliere?
@@ -260,6 +267,7 @@ static inline int found_match() {
 
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
     u32 candidate_u32 = get_next_u32(candidate);
+
     if(candidate_u32 == cmp.current_u32){
         return 1;
     } else if( cmp.hash_table[cmp.current_index] != 0 ){
@@ -304,7 +312,7 @@ static inline void emit_copy() {
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);
     write_copy(copy_length, input.current - candidate);
     cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
-    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
+    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
@@ -339,6 +347,13 @@ static void init_environment(FILE *file_input, unsigned long long int input_size
     init_buffers();
 }
 
+void print_htable() {
+    for (int i = 0; i < cmp.htable_size; ++i) {
+        printf("%hu\t", cmp.hash_table[i]);
+    }
+    printf("\n\n\n-----------------------------------\n\n\n");
+}
+
 static inline void compress_next_block() {
 
     start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
@@ -360,12 +375,6 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
-void print_htable() {
-    for (int i = 0; i < cmp.htable_size; ++i) {
-        printf("%hu\t", cmp.hash_table[i]);
-    }
-    printf("\n\n\n-----------------------------------\n\n\n");
-}
 
 int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
@@ -382,6 +391,10 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
     write_dim_varint();
     load_next_block();
 
+/*    for (int i = 0; i < input.bytes_left; ++i) {
+        printf("%d:%X\t",i, input.beginning[i]);
+    }
+    puts("");*///TODO
     while(input_is_full()){
         compress_next_block();
         write_block_compressed();
