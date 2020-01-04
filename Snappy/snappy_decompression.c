@@ -115,6 +115,7 @@ unsigned long long get_file_size(FILE *file);
 #endif
 
 static double time_taken;
+/*
  int main()
 {
     clock_t time = clock();
@@ -166,7 +167,7 @@ static double time_taken;
     // test();
     return 0;
 }
-
+*/
 
 /*
 void test()
