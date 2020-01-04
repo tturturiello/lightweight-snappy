@@ -63,6 +63,8 @@ struct test {
 
 void test();
 
+void write_result_compression(unsigned long long fdecompressed_size, Test *test);
+
 void init_buffer(Buffer *buffer, const unsigned long *buf_dim, char container[*buf_dim]);
 
 void init_converter(Converter *converter);
@@ -141,7 +143,6 @@ int snappy_decompress(FILE *file_input, FILE *file_decompressed)
 
  int main()
 {
-    /*
     clock_t time = clock();
 
     FILE *source;
@@ -188,11 +189,9 @@ int snappy_decompress(FILE *file_input, FILE *file_decompressed)
     //printf("tempo di esecuzione: %ld",time_taken);
 
     print_result_decompression(get_file_size(destination), get_file_size(source));
-    */
-    test();
+    // test();
     return 0;
 }
-
 
 void test()
 {
@@ -234,7 +233,7 @@ void test()
 
     int count = 0;
     int max_i = 3;
-    int max_j = 5;
+    int max_j = 15;
     for (int i = 0; i < max_i; ++i) {
         for (int j = 1; j <= max_j; ++j) {
             sprintf(finput_name, "../Standard_test/%ub%d.snp", dim[i], j);
@@ -272,7 +271,7 @@ void test()
 
     // TODO: nomi
     for (int k = 0; k < count-1; ++k) {
-
+        ;;
     }
     printf("\n");
     for (int k = 0; k < count-1; ++k) {
@@ -293,32 +292,6 @@ void test()
     fwrite(buff, sizeof(char), buf_dim, fcsv);
 
     fclose(fcsv);
-}
-
-void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size, Test *test)
-{
-    // TODO: stampare risultati decompressione .csv o .txt (generare)
-    // info:
-    // dim input
-    // dim output
-    // tempo
-    // mb/sec
-
-    printf("\nDimensione file compresso = %llu bytes\n", fcompressed_size);
-    test->dim_input = fcompressed_size;
-
-    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
-    test->dim_output = fdecompressed_size;
-
-    // double comp_ratio = (double)fcompressed_size / (double)finput_size;
-    // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
-    // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
-
-    printf("\nDecompression took %f seconds to execute\n", time_taken);
-    test->time = time_taken;
-
-    printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
-    test->mbps = fcompressed_size/(time_taken * 1e6);
 }
 
 int open_resources(FILE **file_in, FILE **file_out)
@@ -752,3 +725,42 @@ unsigned long long get_file_size(FILE *file) {
     fseek(file, 0, SEEK_SET);
     return size;
 }
+
+void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size, Test *test)
+{
+    // TODO: stampare risultati decompressione .csv o .txt (generare)
+    // info:
+    // dim input
+    // dim output
+    // tempo
+    // mb/sec
+
+    printf("\nDimensione file compresso = %llu bytes\n", fcompressed_size);
+    test->dim_input = fcompressed_size;
+
+    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
+    test->dim_output = fdecompressed_size;
+
+    // double comp_ratio = (double)fcompressed_size / (double)finput_size;
+    // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
+    // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
+
+    printf("\nDecompression took %f seconds to execute\n", time_taken);
+    test->time = time_taken;
+
+    printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
+    test->mbps = fcompressed_size/(time_taken * 1e6);
+}
+
+void write_result_compression(unsigned long long fdecompressed_size, Test *test)
+{
+    FILE *csv = fopen("..\\Standard_test\\risultati_decompressione.csv", "a");
+    assert(csv!=NULL);
+    fprintf(csv, "%llu, %llu, %f, %f\n",
+            test->dim_input,
+            test->dim_output,
+            test->time,
+            test->mbps);
+    fclose(csv);
+}
+
