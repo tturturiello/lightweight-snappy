@@ -91,6 +91,8 @@ static void init_compressor(Compressor *cmp){
     cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
 }
 
+
+
 static FILE *finput;
 static FILE *fcompressed;
 static unsigned long long finput_size;
@@ -315,7 +317,7 @@ static inline void emit_copy() {
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);
     write_copy(copy_length, input.current - candidate);
     cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
-    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
+    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
 
     move_current(&input, copy_length);
 }
@@ -433,5 +435,16 @@ void print_result_compression(unsigned long long fcompressed_size) {
 
     printf("\nCompression took %f seconds to execute\n", time_taken);
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
+}
+
+void write_result_compression(unsigned long long fcompressed_size){
+    FILE *csv = fopen("..\\Standard_test\\risultati_compressione.csv", "a");
+    assert(csv!=NULL);
+    fprintf(csv, "%llu, %llu, %f, %f, %f\n", finput_size,
+            fcompressed_size,
+            (double)finput_size / (double)fcompressed_size ,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
 }
 
