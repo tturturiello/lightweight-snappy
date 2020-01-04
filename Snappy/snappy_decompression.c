@@ -9,13 +9,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zconf.h>
+#include <time.h>
 #include "varint.h"
 #include "snappy_decompression.h"
-//#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/test_compressed"
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
-#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
+#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed.snp"
+#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_decompressed.txt"
+
+//#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
+//#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
 #define BUFFER_DIM 65536
+
+// TODO: stampare risultati decompressione .csv o .txt (generare)
+// info:
+// dim input
+// dim output
+// tempo
+// mb/sec
+
 /*
 //// converte una sequenza di byte contenuti in un array, in un numero
 union convertion {
@@ -41,6 +53,15 @@ typedef struct buffer {
     unsigned long mark;
     unsigned long mark_copy;
 } Buffer;
+
+struct test {
+    unsigned long long dim_input;
+    unsigned long long dim_output;
+    float time;
+    float mbps;
+};
+
+void test();
 
 void init_buffer(Buffer *buffer, const unsigned long *buf_dim, char container[*buf_dim]);
 
@@ -78,10 +99,14 @@ void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int mode);
 
 void do_copy_01(Buffer *buf_src, Buffer *buf_dest, FILE *source);
 
+unsigned long long get_file_size(FILE *file);
+
 #endif
 
-int snappy_decompress(FILE *file_input, FILE *file_compressed)
+static double time_taken;
+int snappy_decompress(FILE *file_input, FILE *file_decompressed)
 {
+    clock_t time = clock();
     unsigned long uncomp_dim = varint_to_dim(file_input);
 
     Buffer *buf_src = (Buffer*)malloc(sizeof(Buffer));
@@ -107,14 +132,18 @@ int snappy_decompress(FILE *file_input, FILE *file_compressed)
     } while (readed < uncomp_dim);
 
     // scrivo il contenuto del buffer principale nel file
-    fwrite(buf_dest->array, sizeof(char), uncomp_dim, file_compressed);
+    fwrite(buf_dest->array, sizeof(char), uncomp_dim, file_decompressed);
+    time = clock() - time;
+    time_taken = ((double)time)/CLOCKS_PER_SEC;
 
     return 0;
 }
 
-/*
  int main()
 {
+    /*
+    clock_t time = clock();
+
     FILE *source;
     FILE *destination;
     if (open_resources(&source, &destination))
@@ -153,10 +182,144 @@ int snappy_decompress(FILE *file_input, FILE *file_compressed)
     // wflush(buf_dest, buf_src, destination, source);
     // scrivo il contenuto del buffer principale nel file
     fwrite(buf_dest->array, sizeof(char), uncomp_dim, destination);
+
+    time = clock() - time;
+    double time_taken = ((double)time)/CLOCKS_PER_SEC;
+    //printf("tempo di esecuzione: %ld",time_taken);
+
+    print_result_decompression(get_file_size(destination), get_file_size(source));
+    */
+    test();
     return 0;
 }
- */
 
+
+void test()
+{
+    unsigned int dim[] ={100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000, 200000, 500000, 1000000, 2000000};
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    Test *test = malloc(sizeof(Test));
+
+    char finput_name[300];
+    char fcompressed_name[300];
+    char fdecompressed_name[300];
+    char fcsv_name[300];
+
+
+    FILE *finput;
+    FILE *fcompressed;
+    FILE *fdecompressed;
+    FILE *fcsv;
+
+    // unsigned long csv_dim = len(dim)*300;
+    // int dim_0 =  *(&dim + 1) - dim;
+    //sprintf(fcsv_name, "..\\Standard_test\\%ub%d.csv", csv_dim);
+
+    char *(*str_ptr)[300] = NULL; // per i nomi: array di putatori a stringhe (fdecompressed_name si aggiorna)
+    unsigned long long dim_input[300] = {0};
+    unsigned long long dim_output[300] = {0};
+    float time[300] = {0};
+    float mbps[300] = {0};
+
+    // fai tre buffer:
+    // nomi
+    // dim_input
+    // dim_output
+    // tempo
+    // mb/sec
+
+    fcsv = fopen("/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Support_output_decompression/decompression_data.txt", "wb");
+    //assert(fcsv != NULL);
+
+    int count = 0;
+    int max_i = 3;
+    int max_j = 5;
+    for (int i = 0; i < max_i; ++i) {
+        for (int j = 1; j <= max_j; ++j) {
+            sprintf(finput_name, "../Standard_test/%ub%d.snp", dim[i], j);
+            sprintf(fdecompressed_name,
+                    "../Support_output_decompression/%ub%d_dec", dim[i], j);
+
+            finput = fopen(finput_name, "rb");
+            //assert(finput != NULL);
+            fdecompressed = fopen(fdecompressed_name, "wb");
+            //assert(fdecompressed != NULL);
+
+            snappy_decompress(finput, fdecompressed);
+
+            if ((fdecompressed = fopen(fdecompressed_name, "rb")) != NULL) {
+                print_result_decompression(get_file_size(fdecompressed), get_file_size(finput), test);
+            }
+
+            dim_input[count] = test->dim_input;
+            dim_output[count] = test->dim_output;
+            time[count] = test->time;
+            mbps[count] = test->mbps;
+
+            fclose(finput);
+            fclose(fdecompressed);
+
+            printf("------------------------------------------------------\n\n");
+            count++;
+        }
+    }
+
+    const int buf_dim = 30000;
+    char buff[buf_dim];
+    memset(buff, '\0', sizeof(buff));
+    setvbuf(stdout, buff, _IOFBF, buf_dim);
+
+    // TODO: nomi
+    for (int k = 0; k < count-1; ++k) {
+
+    }
+    printf("\n");
+    for (int k = 0; k < count-1; ++k) {
+        printf("%llu, ",dim_input[k]);
+    }
+    printf("\n");
+    for (int k = 0; k < count-1; ++k) {
+        printf("%llu, ",dim_output[k]);
+    }
+    printf("\n");
+    for (int k = 0; k < count-1; ++k) {
+        printf("%f, ",time[k]);
+    }
+    printf("\n");
+    for (int k = 0; k < count-1; ++k) {
+        printf("%f, ",mbps[k]);
+    }
+    fwrite(buff, sizeof(char), buf_dim, fcsv);
+
+    fclose(fcsv);
+}
+
+void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size, Test *test)
+{
+    // TODO: stampare risultati decompressione .csv o .txt (generare)
+    // info:
+    // dim input
+    // dim output
+    // tempo
+    // mb/sec
+
+    printf("\nDimensione file compresso = %llu bytes\n", fcompressed_size);
+    test->dim_input = fcompressed_size;
+
+    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
+    test->dim_output = fdecompressed_size;
+
+    // double comp_ratio = (double)fcompressed_size / (double)finput_size;
+    // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
+    // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
+
+    printf("\nDecompression took %f seconds to execute\n", time_taken);
+    test->time = time_taken;
+
+    printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
+    test->mbps = fcompressed_size/(time_taken * 1e6);
+}
 
 int open_resources(FILE **file_in, FILE **file_out)
 {
@@ -451,7 +614,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
 
     unsigned char mode = mask_tag & (curr_byte);
     switch(mode) {
-        case 0: do_literal(buf_src, buf_dest, source); break;
+        case 0: //do_literal(buf_src, buf_dest, source); break;
             switch (notag_value) {
                 case 63:
                     extra_bytes++;
@@ -580,4 +743,12 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
     }
     buf_src->mark++;
     return len;
+}
+
+unsigned long long get_file_size(FILE *file) {
+    unsigned long long size;
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    return size;
 }

@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdint.h>
 #include "snappy_compression.h"
+#include "snappy_decompression.h"
 
 unsigned int dim[] ={100, 200, 500, 1000, 2000, 5000, 10000, 50000, 100000, 200000, 500000, 1000000, 2000000};
 
@@ -47,6 +48,8 @@ int main(){
 
     char finput_name[300];
     char fcompressed_name[300];
+    char fdecompressed_name[300];
+    char fcsv_name[300];
 
 
 
@@ -54,6 +57,7 @@ int main(){
 /*    FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
+    FILE *fcsv;
 
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
@@ -82,6 +86,59 @@ int main(){
 
             printf("------------------------------------------------------\n\n");
         }
+    }
+/*
+    // unsigned long csv_dim = len(dim)*300;
+    // int dim_0 =  *(&dim + 1) - dim;
+    //sprintf(fcsv_name, "..\\Standard_test\\%ub%d.csv", csv_dim);
 
-    }*/
+    char dim_input[300];
+    char dim_output[300];
+    char time[300];
+    char mbps[300];
+    // fai tre buffer:
+        // nomi
+        // dim input
+        // dim output
+        // tempo
+        // mb/sec
+
+    fcsv = fopen(fcsv_name, "wb");
+    assert(fcsv != NULL);
+    int count = 0;
+    for (int i = 0; i < 13; ++i) {
+        for (int j = 1; j <= 5; ++j) {
+            sprintf(finput_name, "..\\Standard_test\\%ub%d.snp", dim[i], j);
+            sprintf(fdecompressed_name,
+                    "..\\Standard_test\\%ub%d_dec", dim[i], j);
+
+            finput = fopen(finput_name, "rb");
+            assert(finput != NULL);
+            fdecompressed = fopen(fdecompressed_name, "wb");
+            assert(fdecompressed != NULL);
+
+            snappy_decompress(finput, fdecompressed);
+
+            if (fclose(finput) == 0) {
+                // printf("Chiuso input compressione\n");
+                return -1;
+            }
+
+            if (fclose(fdecompressed) == 0) {
+                // printf("Chiuso output decompressione\n");
+                return -1;
+            }
+
+            if ((fdecompressed = fopen(fdecompressed_name, "rb")) != NULL) {
+                print_result_decompression(get_file_size(fdecompressed), get_file_size(finput));
+            }
+            fclose(finput);
+
+            printf("------------------------------------------------------\n\n");
+            count++;
+        }
+    }
+    if (fclose(fcsv) == 0)
+        printf("Chiuso file csv\n");
+        */
 }
