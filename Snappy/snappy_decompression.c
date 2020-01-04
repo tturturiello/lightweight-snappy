@@ -17,8 +17,8 @@
 //#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
 //#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_compressed.txt"
 
-#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/100000b1.snp"
-#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/100000b1dec"
+#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/50000b5.snp"
+#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/50000b5dec"
 
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
@@ -583,12 +583,14 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                         buf_src->mark = 0;
                     }
 
+
                     // converto i byte associati alla lunghezza del buffer in valore intero
-                    for (int i = extra_bytes; i > 0; i--) {
+                    for (int i = 0; i < extra_bytes; i++) {
                         buf_src->mark++;
-                        converter.byte_arr[i - 1] = (char) (buf_src->array[buf_src->mark] + 1);
+                        converter.byte_arr[i] = (char) (buf_src->array[buf_src->mark]);
+
                     }
-                    len = converter.value;
+                    len = converter.value + 1;
 
                     // copio elemento per elemento
                     for (int i = 0; i < len; ++i, buf_dest->mark++) {
