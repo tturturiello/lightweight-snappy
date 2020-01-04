@@ -107,10 +107,10 @@ void run_compression(char *finput_name, char*fcompressed_name){
 
 int main(){
 
-/*    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
+    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
     assert(source!=NULL);
     create_test_files(source);
-    fclose(source);*/
+    fclose(source);
 
     char finput_name[300];
     char fcompressed_name[300];
@@ -131,7 +131,7 @@ int main(){
             
             //-----------------------Compressione----------------------
             for (int k = 0; k < 10; ++k) {
-                run_compression(finput_name, fcompressed_name);
+                //run_compression(finput_name, fcompressed_name);
             }
 
 /*

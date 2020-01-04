@@ -135,9 +135,11 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
 
         while(len_minus_1 > 0){
             *current_out++ = len_minus_1 & 0xFF;
+            printf("%X\t", (char)(len_minus_1 & 0xFF));
             len_minus_1 = len_minus_1 >> 8;
             code_literal++;
         }
+
         assert(code_literal >= 60);
         assert(code_literal <= 64);
         *tag_byte = code_literal << 2;
@@ -146,7 +148,7 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
     for (int i = 0; i < len; ++i) {
         printf("%X ", start_of_literal[i]);
     }
-    puts("");*///TODO
+    puts("");//TODO*/
     memcpy(current_out, start_of_literal, len); //Copio il literal
     current_out += len;
     move_current(&output, current_out - output.current);
@@ -164,7 +166,9 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
         *current_out++ = (offset >> 8) & 0xFF;
         //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
     }
+    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
     move_current(&output, current_out - output.current);
+
 }
 
 static inline void write_copy(unsigned int len, unsigned long offset) {
@@ -317,8 +321,6 @@ static inline void emit_copy() {
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);
     write_copy(copy_length, input.current - candidate);
     cmp.hash_table[cmp.current_index] = input.current - input.beginning; //Aggiorno l'offset della copia
-    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
-
     move_current(&input, copy_length);
 }
 

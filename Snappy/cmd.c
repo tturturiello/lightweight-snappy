@@ -1,22 +1,24 @@
 #include <stdio.h>
 #include <assert.h>
-//#include "snappy_compression.h"
+#include "snappy_compression.h"
 //#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
 
 
-/*
+
 //------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\500b5"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\500b5.snp"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Support_output_decompression\\50000b5"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Support_output_decompression\\50000b5_2.snp"
 #define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
-*/
+
+/*
 
 
 //------------Turturiello---------------------------------------------
 #define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Files_test/alice.txt"
 #define FCOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
 #define FDECOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_decompressed.txt"
+*/
 
 unsigned long long get_file_size(FILE *file) {
     unsigned long long size;
@@ -37,7 +39,7 @@ int main(){
     FILE *fcompressed;
     FILE *fdecompressed;
 
-    /*
+
     //------------Compressione ---------------------------------------------
     finput = fopen(FINPUT_NAME, "rb");
     assert(finput != NULL);
@@ -56,10 +58,11 @@ int main(){
         print_result_compression(get_file_size(fcompressed));
     }
     fclose(finput);
-     */
+
 
 
     //-----------Decompressione ---------------------------------------------
+/*
     fcompressed = fopen(FCOMPRESSED_NAME, "rb");
     assert(fcompressed != NULL);
     fdecompressed = fopen(FDECOMPRESSED_NAME, "wb");
@@ -78,5 +81,6 @@ int main(){
     // }
 
     fclose(fdecompressed);
+*/
 
 }

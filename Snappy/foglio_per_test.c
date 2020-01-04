@@ -67,7 +67,7 @@ char *test_write_copy(unsigned int len, unsigned int offset, char *output) {
 
 void test_tag_literal(){
 
-    unsigned int len = 65539;
+    unsigned int len = 360;
     unsigned int offset = 1024;
 
     char *output = (char *)malloc(sizeof(char)*30);
@@ -137,7 +137,7 @@ int test_blocks() {
 }
 
 int main() {
-    printf("%u ", 64 >> 5);
+    test_tag_literal();
 
 
 
