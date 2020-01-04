@@ -10,9 +10,10 @@ typedef union convertion Converter;
 typedef struct buffer Buffer;
  */
 
-typedef struct test Test;
+// typedef struct test Test;
 
 int snappy_decompress(FILE *file_input, FILE *file_decompressed);
-void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size, Test *test);
+void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size);
+void write_result_decompression(unsigned long long fdecompressed_size);
 
 #endif //SNAPPY_SNAPPY_DECOMPRESSION_H
