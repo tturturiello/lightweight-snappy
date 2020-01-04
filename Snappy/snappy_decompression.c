@@ -11,10 +11,14 @@
 #include <string.h>
 //#include <zconf.h>
 #include <time.h>
+#include <assert.h>
 #include "varint.h"
 #include "snappy_decompression.h"
-#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed.snp"
-#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_decompressed.txt"
+//#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
+//#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_compressed.txt"
+
+#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/100000b1.snp"
+#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Standard_test/100000b1dec"
 
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
@@ -111,7 +115,6 @@ unsigned long long get_file_size(FILE *file);
 #endif
 
 static double time_taken;
-/*
  int main()
 {
     clock_t time = clock();
@@ -163,7 +166,7 @@ static double time_taken;
     // test();
     return 0;
 }
- */
+
 
 /*
 void test()
@@ -545,7 +548,7 @@ void do_copy_01(Buffer *buf_src, Buffer *buf_dest, FILE *source)
 
 unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_src)
 {
-    //unsigned char curr_byte = *buf_src->array;
+    static unsigned long counter;
     //unsigned char curr_byte = (buf_src->array[buf_src->mark]); // corrente
     unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
     unsigned char mask_tag = 0x03;
@@ -691,6 +694,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
         default:break;
     }
     buf_src->mark++;
+    counter++;
     return len;
 }
 
@@ -738,6 +742,8 @@ int snappy_decompress(FILE *file_input, FILE *file_decompressed)
     dim_output = get_file_size(file_decompressed);
     mbps = dim_output/(time_taken * 1e6);
 
+    free(buf_src);
+    free(buf_dest);
     return 0;
 }
 
