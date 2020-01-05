@@ -170,9 +170,9 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
         assert(code_literal >= 60);
         assert(code_literal < 64);
         *tag_byte = code_literal << 2;//Inserisco il codice nel tag byte
-        printf("%X %X %X\n", (unsigned char)tag_byte[0], (unsigned char)tag_byte[1], (unsigned char)tag_byte[2]);
+        //printf("%X %X %X\n", (unsigned char)tag_byte[0], (unsigned char)tag_byte[1], (unsigned char)tag_byte[2]);
     }
-    printf("Literal of len = %u\n", len);
+   // printf("Literal of len = %u\n", len);
 
 /*   for (int i = 0; i < len; ++i) {
         printf("%X ", (unsigned char)start_of_literal[i]);
@@ -205,7 +205,7 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
         *current_out++ = (offset >> 8) & 0xFF;
         //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
     }
-    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
+    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
     move_current(&output, current_out - output.current);
 
 }
