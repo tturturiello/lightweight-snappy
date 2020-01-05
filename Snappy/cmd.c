@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
+#include <getopt.h>
 #include "snappy_compression.h"
 //#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
@@ -7,8 +8,8 @@
 
 
 //------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Support_output_decompression\\50000b5"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Support_output_decompression\\50000b5_2.snp"
+#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\5000b4"
+#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\5000b4.snp"
 #define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
 
 /*
@@ -19,6 +20,7 @@
 #define FCOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
 #define FDECOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_decompressed.txt"
 */
+ static enum {compress, uncompress} mode;
 
 unsigned long long get_file_size(FILE *file) {
     unsigned long long size;
@@ -34,7 +36,7 @@ unsigned long long get_file_size(FILE *file) {
     else return -1;*/
 }
 
-int main(){
+int compression() {
     FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
@@ -58,7 +60,26 @@ int main(){
         print_result_compression(get_file_size(fcompressed));
     }
     fclose(finput);
+}
 
+void show_usage() {
+
+}
+
+int main(int argc, char* argv[]){
+    int opt;
+    while ((opt = getopt(argc, argv, "cd")) != -1) {
+        switch (opt) {
+            case 'c':
+                mode = uncompress;
+                break;
+            case 'd':
+                mode = compress;
+                break;
+            default:
+                show_usage();
+        }
+    }
 
 
     //-----------Decompressione ---------------------------------------------
@@ -84,3 +105,6 @@ int main(){
 */
 
 }
+
+
+

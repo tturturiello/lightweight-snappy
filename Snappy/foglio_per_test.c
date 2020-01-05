@@ -5,13 +5,12 @@
 #include <time.h>
 #include <assert.h>
 #include <string.h>
-
+#include <math.h>
 #define MAX_BLOCK_SIZE 65536
 #define min(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
-
 void prova_con_BTS(){
     srand(time(NULL));
     Tree *hash_table[10];
@@ -136,10 +135,18 @@ int test_blocks() {
     fclose(fout);
 }
 
+void alternative_hash_bytes(u32 val){
+    int htable_size = 4096;
+    double A =  (sqrt(5.0) - 1 )/ 2;
+    double fraction = A * val - ((long)(A * val));
+    unsigned int code = (unsigned int)(htable_size * fraction);
+    printf("%d",  code);
+}
+
 int main() {
-    test_tag_literal();
 
-
+    u32 val = 3904133790;
+    alternative_hash_bytes(val);
 
 }
 

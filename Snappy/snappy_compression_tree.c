@@ -9,24 +9,21 @@
 #include "BST.h"
 #define MAX_BLOCK_SIZE 65536
 #define MAX_HTABLE_SIZE 4096
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
 
-static const int tab32[32] = {
-        0,  9,  1, 10, 13, 21,  2, 29,
-        11, 14, 16, 18, 22, 25,  3, 30,
-        8, 12, 20, 28, 15, 17, 24,  7,
-        19, 27, 23,  6, 26,  5,  4, 31};
-
-static inline int log2_32(unsigned int value) {
-    value |= value >> 1;
-    value |= value >> 2;
-    value |= value >> 4;
-    value |= value >> 8;
-    value |= value >> 16;
-    return tab32[(unsigned int) (value * 0x07C4ACDD) >> 27];
+/**
+ *  Calcola la parte intera del logaritmo in base due dell'intero passato in parametro.
+ *  Nel programma viene usata unicamente con potenze di due.
+ * @param pow_of_2 la potenza di due
+ * @return log2 del valore passato in parametro
+ */
+static inline int log2_32(unsigned int pow_of_2) {
+    assert(pow_of_2 > 0);
+    int pow = -1;
+    while(pow_of_2 > 0){
+        pow_of_2>>=1;
+        pow++;
+    }
+    return pow;
 }
 
 typedef struct buffer {
@@ -378,8 +375,11 @@ void print_htable_tree() {
 
 int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
-    clock_t t;
-    t = clock();
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
 
     init_environment(file_input, input_size, file_compressed);
     write_dim_varint();
@@ -395,8 +395,8 @@ int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *
     free_hash_table();
     free_buffers();
 
-    t = clock() - t;
-    time_taken = ((double)t)/CLOCKS_PER_SEC;
+    QueryPerformanceCounter(&end);
+    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
 
 }
 
@@ -430,5 +430,15 @@ void print_result_compression_tree(unsigned long long fcompressed_size) {
 
 }
 
+void write_result_compression_tree(unsigned long long fcompressed_size){
+    FILE *csv = fopen("..\\Standard_test\\risultati_compressione_tree.csv", "a");
+    assert(csv!=NULL);
+    fprintf(csv, "%llu, %llu, %f, %f, %f\n", finput_size,
+            fcompressed_size,
+            (double)finput_size / (double)fcompressed_size ,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
 
 

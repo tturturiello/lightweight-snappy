@@ -105,12 +105,13 @@ void run_compression(char *finput_name, char*fcompressed_name){
 
 }
 
+
 int main(){
 
-    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
+/*    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
     assert(source!=NULL);
     create_test_files(source);
-    fclose(source);
+    fclose(source);*/
 
     char finput_name[300];
     char fcompressed_name[300];
@@ -118,7 +119,6 @@ int main(){
     FILE *finput;
     FILE *fcompressed;
     FILE *fdecompressed;
-    FILE *fcsv;
 
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
@@ -130,11 +130,9 @@ int main(){
                     "..\\Standard_test\\%ub%ddec", dim[i], j);
             
             //-----------------------Compressione----------------------
-            for (int k = 0; k < 10; ++k) {
-                //run_compression(finput_name, fcompressed_name);
-            }
+            run_compression(finput_name, fcompressed_name);
 
-/*
+
             //-----------------------Decompressione----------------------
             printf("Decompressione di %s\n\n", fdecompressed_name);
             fcompressed = fopen(fcompressed_name, "rb");
@@ -151,7 +149,7 @@ int main(){
                 printf("Chiuso output decompressione\n");
 
             if ((fdecompressed = fopen(fdecompressed_name, "rb")) != NULL) {
-                //write_result_decompression(get_size(fdecompressed));
+                write_result_decompression(get_size(fdecompressed));
             }
             fclose(fdecompressed);
 
@@ -161,11 +159,11 @@ int main(){
             assert(finput != NULL);
             fdecompressed = fopen(fdecompressed_name, "rb");
             assert(fdecompressed != NULL);
+
             compareFiles(finput, fdecompressed);
+
             fclose(finput);
             fclose(fdecompressed);
-*/
-
         }
     }
 }
