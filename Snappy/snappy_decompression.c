@@ -113,6 +113,7 @@ unsigned long long get_file_size(FILE *file);
 #endif
 
 static double time_taken;
+/*
 int main()
 {
     clock_t time = clock();
@@ -164,7 +165,7 @@ int main()
     // test();
     return 0;
 }
-
+*/
 int open_resources(FILE **file_in, FILE **file_out)
 {
     if ((*file_in = fopen(FINPUT_NAME, "rb"))== NULL) {
