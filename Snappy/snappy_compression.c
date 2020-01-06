@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <windows.h>
 #include <stdio.h>
 #include "IO_utils.h"
 #include "varint.h"
