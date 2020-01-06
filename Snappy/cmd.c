@@ -135,6 +135,8 @@ int main(int argc, char* argv[]){
     fclose(output);
 
     show_result(output_name);
+
+    //TODO compressione non avvenuta?
 }
 
 

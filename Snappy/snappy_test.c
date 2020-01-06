@@ -3,30 +3,28 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdint.h>
+#include <winnt.h>
+#include <afxres.h>
+#include "IO_utils.h"
 #include "snappy_compression.h"
 #include "snappy_decompression.h"
 
 unsigned int dim[] ={500, 1000, 2000, 5000, 10000, 20000, 50000, 80000, 100000, 200000, 500000, 800000, 1000000};
+static double time_taken = 0;
+LARGE_INTEGER frequency;
+LARGE_INTEGER start;
+LARGE_INTEGER end;
+typedef enum {compress, uncompress} Mode;
 
-unsigned long long get_size(FILE *file) {
-    unsigned long long size;
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    return size;
 
-/*    struct stat st;//TODO:?
+void compare_files(char *f1_name, char *f2_name) {
 
-    if (stat(filename, &st) == 0)
-        return st.st_size;
-    else return -1;*/
-}
-
-void compareFiles(FILE *fp1, FILE *fp2) {
+    FILE * f1 = open_read(f1_name);
+    FILE * f2 = open_read(f2_name);
     // fetching character of two file
     // in two variable ch1 and ch2
-    char ch1 = getc(fp1);
-    char ch2 = getc(fp2);
+    char ch1 = getc(f1);
+    char ch2 = getc(f2);
 
     // error keeps track of number of errors
     // pos keeps track of position of errors
@@ -54,10 +52,11 @@ void compareFiles(FILE *fp1, FILE *fp2) {
         }
 
         // fetching character until end of file
-        ch1 = getc(fp1);
-        ch2 = getc(fp2);
+        ch1 = getc(f1);
+        ch2 = getc(f2);
     }
-
+    fclose(f1);
+    fclose(f2);
     printf("Total Errors : %d\t", error);
 }
 
@@ -75,35 +74,73 @@ void create_test_files(FILE *source) {
         printf("Scrivo %u bytes\n", fwrite(buffer, 1, dim[i], test));
         fclose(test);
     }
-
 }
 
-void run_compression(char *finput_name, char*fcompressed_name){
+void start_time() {
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
+}
+
+void stop_time() {
+    QueryPerformanceCounter(&end);
+    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+}
+
+void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
+    FILE *csv = open_append("..\\Standard_test\\risultati_compressione.csv");
+    fprintf(csv, "%llu, %llu, %f, %f, %f\n",
+            finput_size,
+            fcompressed_size,
+            (double)finput_size / (double)fcompressed_size ,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
+{
+    FILE *csv = open_write("..\\Standard_test\\risultati_decompressione.csv");
+    fprintf(csv, "%llu, %llu, %f, %f\n",
+            finput_size,
+            fdecompressed_size,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+
+void run_test(char *finput_name, char*foutput_name, Mode mode){
     FILE *finput;
-    FILE *fcompressed;
-    printf("\n------------------------------------------------------\n");
-    printf("Compressione di %s\n\n", fcompressed_name);
-    finput = fopen(finput_name, "rb");
-    assert(finput != NULL);
-    fcompressed = fopen(fcompressed_name, "wb");
-    assert(fcompressed != NULL);
+    FILE *foutput;
 
-    snappy_compress(finput, get_size(finput), fcompressed);
+    finput = open_read(finput_name);
+    foutput = open_write(foutput_name);
 
-    if (fclose(finput) == 0)
-        printf("Chiuso input compressione\n");
+    unsigned long long finput_size = get_size(finput);
 
-    if (fclose(fcompressed) == 0)
-        printf("Chiuso output compressione\n");
+    start_time();
+    if(mode == compress)
+        snappy_compress(finput, finput_size, foutput);
+    else
+        snappy_decompress(finput, foutput);
+    stop_time();
 
-    if ((fcompressed = fopen(fcompressed_name, "rb")) != NULL) {
-        print_result_compression(get_size(fcompressed));
-        write_result_compression(get_size(fcompressed));
+    fclose(finput);
+    fclose(foutput);
+
+
+    foutput = open_read(foutput_name);
+
+    unsigned long long foutput_size = get_size(foutput);
+    if(mode == compress) {
+        print_result_compression(foutput_size);
+        write_result_compression(finput_size, foutput_size);
+    } else {
+        write_result_decompressione(finput_size, foutput_size);
     }
-    fclose(fcompressed);
-    printf("------------------------------------------------------\n\n");
+
+    fclose(foutput);
 
 }
+
 
 
 int main(){
@@ -116,9 +153,6 @@ int main(){
     char finput_name[300];
     char fcompressed_name[300];
     char fdecompressed_name[300];
-    FILE *finput;
-    FILE *fcompressed;
-    FILE *fdecompressed;
 
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
@@ -130,40 +164,22 @@ int main(){
                     "..\\Standard_test\\%ub%ddec", dim[i], j);
             
             //-----------------------Compressione----------------------
-            run_compression(finput_name, fcompressed_name);
-
+            printf("\n------------------------------------------------------\n");
+            printf("Compressione di %s\n\n", fcompressed_name);
+            run_test(finput_name, fcompressed_name, compress);
 
             //-----------------------Decompressione----------------------
-            printf("Decompressione di %s\n\n", fdecompressed_name);
-            fcompressed = fopen(fcompressed_name, "rb");
-            assert(fcompressed != NULL);
-            fdecompressed = fopen(fdecompressed_name, "wb");
-            assert(fdecompressed != NULL);
 
-            snappy_decompress(fcompressed, fdecompressed);
-
-            if (fclose(fcompressed) == 0)
-                printf("Chiuso input decompressione\n");
-
-            if (fclose(fdecompressed) == 0)
-                printf("Chiuso output decompressione\n");
-
-            if ((fdecompressed = fopen(fdecompressed_name, "rb")) != NULL) {
-                write_result_decompression(get_size(fdecompressed));
-            }
-            fclose(fdecompressed);
+            printf("\n------------------------------------------------------\n");
+            printf("Compressione di %s\n\n", fcompressed_name);
+            run_test(fcompressed_name, fcompressed_name, uncompress);
 
             printf("------------------------------------------------------\n\n");
             printf("CHECK INTEGRITY\n\n");
-            finput = fopen(finput_name, "rb");
-            assert(finput != NULL);
-            fdecompressed = fopen(fdecompressed_name, "rb");
-            assert(fdecompressed != NULL);
 
-            compareFiles(finput, fdecompressed);
+            compare_files(finput_name, fdecompressed_name);
 
-            fclose(finput);
-            fclose(fdecompressed);
+
         }
     }
 }
