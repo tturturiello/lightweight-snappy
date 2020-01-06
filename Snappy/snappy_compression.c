@@ -10,25 +10,26 @@
 
 #define MAX_BLOCK_SIZE 65536
 #define MAX_HTABLE_SIZE 4096
-#define A 0.6180339887498949
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
 
 
-/**
- *  Calcola la parte intera del logaritmo in base due dell'intero passato in parametro.
- *  Nel programma viene usata unicamente con potenze di due.
- * @param pow_of_2 la potenza di due
- * @return log2 del valore passato in parametro
- */
-static inline int log2_32(unsigned int pow_of_2) {
-    assert(pow_of_2 > 0);
-    int pow = -1;
-    while(pow_of_2 > 0){
-        pow_of_2>>=1;
-        pow++;
-    }
-    return pow;
+static const int tab32[32] = {
+        0,  9,  1, 10, 13, 21,  2, 29,
+        11, 14, 16, 18, 22, 25,  3, 30,
+        8, 12, 20, 28, 15, 17, 24,  7,
+        19, 27, 23,  6, 26,  5,  4, 31};
+
+static inline int log2_32(unsigned int value) {
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    return tab32[(unsigned int) (value * 0x07C4ACDD) >> 27];
 }
-
 
 typedef struct buffer {
     char *current;
@@ -103,14 +104,7 @@ unsigned long long collisions = 0;
 double time_taken = 0;
 
 
-/**
- * Calcola la lunghezza della copia trovata. Compara byte a byte le due sequenze in maniera lineare
- * fino a quando i due byte sono uguali o si abbia esaurito l'input.
- * @param current la posizione corrente nel buffer di input
- * @param candidate la possibile copia nella finestra di dati precedente
- * @return la lunghezza della copia
- */
-static inline unsigned int find_copy_length(char * current, char *candidate) {
+static inline unsigned int find_copy_length(char * current, char *candidate) {//TODO: max copy length? Incremental copy?
     const char *limit =  input.current + input.bytes_left;
     unsigned int length = 0;
     for(; current < limit; current++, candidate++){
@@ -123,33 +117,11 @@ static inline unsigned int find_copy_length(char * current, char *candidate) {
     return length;
 }
 
-/**
- * Funzione di hash utilizzata da Snappy. Minimizza le collisioni e massimizza la velocit?,
- * affidandosi a due sole operazioni: una moltiplicazione e uno shift. Il valore di shift ?
- * proporzionale alla dimensione dell'hash table (32 - log2(htable_size)).
- * @param bytes i 4 byte di cui viene generato l'hash code
- * @return hash code dei 4 byte passati in parametro
- */
 static inline u32 hash_bytes(u32 bytes){
     u32 kmul = 0x1e35a7bd;
     return (bytes * kmul) >> cmp.shift;
 }
 
-static inline u32 alternative_hash_bytes(u32 val){
-    double fraction = A * val - ((unsigned long)(A * val));
-    unsigned int hash_code = (unsigned int)(cmp.htable_size * fraction);
-    return hash_code;
-}
-
-/**
- * Scrive in output il literal di lunghezza e inizio passati in parametro.
- * Il formato ? quello specificato dal format description di Snappy. Se la lunghezza
- * del literal ? inferiore a 60, len-1 viene scritto nei 6 higher bits del tag byte.
- * Se len > 60, len-1 viene scritto nei byte successivi al tag byte (da 1 a 4) e i 6 higher
- * bits del tag byte ne indicano la quantit?: 60 -> 1 byte, 61 -> 2, 62 -> 3, 63 -> 4
- * @param start_of_literal l'inizio del literal
- * @param len la lunghezza del literal
- */
 static inline void write_literal(const char *start_of_literal, unsigned int len) {
 
     char *current_out = output.current;
@@ -162,59 +134,42 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
 
         while(len_minus_1 > 0){
             *current_out++ = len_minus_1 & 0xFF;
+            printf("%X\t", (char)(len_minus_1 & 0xFF));
             len_minus_1 = len_minus_1 >> 8;
             code_literal++;
         }
 
         assert(code_literal >= 60);
-        assert(code_literal < 64);
-        *tag_byte = code_literal << 2;//Inserisco il codice nel tag byte
-        //printf("%X %X %X\n", (unsigned char)tag_byte[0], (unsigned char)tag_byte[1], (unsigned char)tag_byte[2]);
+        assert(code_literal <= 64);
+        *tag_byte = code_literal << 2;
     }
-   //printf("Literal of len = %u\n", len);
-
-/*   for (int i = 0; i < len; ++i) {
-        printf("%X ", (unsigned char)start_of_literal[i]);
-    }*/
-    //puts("");//TODO*/
+/*    printf("Literal of len = %u\n", len);
+    for (int i = 0; i < len; ++i) {
+        printf("%X ", start_of_literal[i]);
+    }
+    puts("");//TODO*/
     memcpy(current_out, start_of_literal, len); //Copio il literal
     current_out += len;
     move_current(&output, current_out - output.current);
 
 }
 
-/**
- * Scrive una copia con len <= 64 (il massimo valore esprimibile in 6 bits) e offset specificato.
- * Il formato ? quello specificato dal format description di Snappy. Vengono utilizzate solo copie 01 e 10,
- * dato che i blocchi in compressione non supera i 64kB e quindi un'offset non pu? eccedere questo valore.
- * Copy 01: 3 bits per len-4 (nel tag byte) e 11 bits per l'offset (3 ne l tag byte e 8 nel byte successivo)
- * Copy 10: 6 bits per len-1 (nel tag byte) e 2 byte successivi per l'ffset
- * @param len la lunghezza della copia (<=64)
- * @param offset l'offset della copia
- */
 static inline void write_single_copy(unsigned int len, unsigned int offset){
-    assert(len <= 64);
     char *current_out = output.current;
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
         *current_out++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
         *current_out++ = offset & 0xFF;
-    } else if ( offset < 65536) {//Copy 10: 6 bits for len-1 and 16 bits for offset
+    } else if ( offset < 65536) {//Copy 10: 6 bits for len-1 and 16 bits for offset //TODO: assert?
         *current_out++ = ((len - 1) << 2) | 2;
         *current_out++ = offset & 0xFF;
         *current_out++ = (offset >> 8) & 0xFF;
         //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
     }
-    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
+    printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
     move_current(&output, current_out - output.current);
 
 }
 
-/**
- *  Scrive una copia di qualsiasi dimensione scomponendola in pi? copie di lunghezza >= 64.
- *  Minimizza il numero di copie singole emesse.
- * @param len la lunghezza della copia
- * @param offset l'offset della copia
- */
 static inline void write_copy(unsigned int len, unsigned long offset) {
 
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
@@ -249,8 +204,7 @@ static void write_dim_varint() {
  *
  */
 static void init_buffers() {
-
-    init_Buffer(&input, MAX_BLOCK_SIZE);
+    init_Buffer(&input, MAX_BLOCK_SIZE); //TODO min?
     init_Buffer(&output, MAX_BLOCK_SIZE + 1010 + 5);
 }
 
@@ -293,7 +247,7 @@ static inline int input_is_full() {
  */
 static inline int is_block_end() {
 
-    return input.bytes_left < (cmp.skip_bytes >> 5) + 15;
+    return input.bytes_left < (cmp.skip_bytes >> 5) + 15;//TODO, margine migliore?
 }
 
 /**
@@ -314,15 +268,9 @@ static inline void generate_hash_index() {
     //printf("%X %X %X %X\n", (char)input.current[0],(char)input.current[1], (char)input.current[2], (char)input.current[3]);//TODO
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
-    alternative_hash_bytes(cmp.current_u32);
     number_of_u32++;//TODO togliere?
 }
 
-/**
- * Controlla se alla posizione indicata dall'offset ottenuto dall'hash table,
- * esista effettivamente una copia dei 4 byte correnti: Potrebbe infatti essere solo una collisione
- * @return 1 se una copia ? stata trovata
- */
 static inline int found_match() {
 
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
@@ -337,31 +285,18 @@ static inline int found_match() {
 
 }
 
-/**
- * Inizia un nuovo literal azzerandone il contatore della lunghezza.
- * La ricerca di un match torna a essere eseguita ad ogny byte (32 >> 5 = 1)
- */
 static inline void start_new_literal() {
     cmp.literal_length = 0;
     cmp.skip_bytes = 32;
+
 }
 
-/**
- * Accumula i byte in input appena letti e per cui non ? stata trovata una copia nel prossimo literal da
- * emettere. Per aumentare la velocit? di compressione, se 32 u32 vengono esaminati senza trovare una copia,
- * il programma comincia a cercare una copia ogni due byte, se ulteriori 32 u32 non hanno match, cerca ogni tre
- * e cos? via. Questo permette di avere un grande vantaggio con input che presentano parti molto grandi di dati non
- * comprimibili, dato che il programma capisce in fretta che non ha senso cercare delle copie.
- */
 static inline void append_literal() {
     u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
     cmp.literal_length += bytes_to_skip;
     move_current(&input, bytes_to_skip);
 }
 
-/**
- * Esaurisce l'input accumulandone la parte rimanente nel prossimo literal da emettere
- */
 static inline void exhaust_input() {
 
     cmp.literal_length += input.bytes_left;
@@ -369,10 +304,6 @@ static inline void exhaust_input() {
 
 }
 
-/**
- * Aggiorna l'hash table con l'offset dell'u32 (4 byte) corrente. Per aumentare la compressione a scapito di poche
- * operazioni in pi?, viene inserito nell'hash table anche l'offset dell'u32 precedente
- */
 static inline void update_hash_table() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
     cmp.hash_table[hash_bytes(previous_u32)] = input.current - input.beginning - 1;
@@ -450,11 +381,17 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
+
 int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
     //clock_t t;
     //t = clock();
 
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);
 
     init_environment(file_input, input_size, file_compressed);
     write_dim_varint();
@@ -476,10 +413,14 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
 
     //t = clock() - t;
     //time_taken =((double)t)/CLOCKS_PER_SEC;
+    QueryPerformanceCounter(&end);
+    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
 
 }
 
 void print_result_compression(unsigned long long fcompressed_size) {
+
+    //TODO check se un compressione ? avvenuta
 
     printf("\nDimensione file originale = %llu bytes\n", finput_size);
 
@@ -497,5 +438,14 @@ void print_result_compression(unsigned long long fcompressed_size) {
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 }
 
-
+void write_result_compression(unsigned long long fcompressed_size){
+    FILE *csv = fopen("..\\Standard_test\\risultati_compressione.csv", "a");
+    assert(csv!=NULL);
+    fprintf(csv, "%llu, %llu, %f, %f, %f\n", finput_size,
+            fcompressed_size,
+            (double)finput_size / (double)fcompressed_size ,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
 
