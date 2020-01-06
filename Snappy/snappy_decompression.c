@@ -260,7 +260,7 @@ int is_in_buffer(Buffer *buffer, unsigned int bytes_number)
 {
     // se dalla posizione corrente si supera la dimensione del buffer leggendo i byte extra
     long check_2 = buffer->mark + bytes_number;
-    if (buffer->mark + bytes_number > BUFFER_DIM)
+    if (buffer->mark + bytes_number >= BUFFER_DIM)
         return 0;
     return 1;
 }
