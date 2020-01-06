@@ -27,6 +27,13 @@
 
 #define BUFFER_DIM 65536 + 5 // caso peggiore: 5 byte per esprimere un literal lungo 65536
 
+/*
+ * rispetto requisiti
+ * soluzione proposta
+ * Converter (strutture)
+ * procedure test (risultati)
+*/
+
 //// converte una sequenza di byte contenuti in un array, in un numero
 typedef union convertion {
     char byte_arr[4];
@@ -125,9 +132,9 @@ int main()
     unsigned long readed = 0;
     do {
         count++;
-        printf("%d) ",count);
+        // printf("%d) ",count);
         readed += decompressor(source, buf_dest, buf_src);
-        printf("\n");
+        // printf("\n");
     } while (readed < uncomp_dim);
 
     // wflush(buf_dest, buf_src, destination, source);
@@ -272,6 +279,7 @@ void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source)
 
     Converter converter;
     init_converter(&converter);
+
     switch (notag_value) {
         case 63:
             extra_bytes++;
@@ -485,7 +493,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                     // check_dim_buffer(buf_src, extra_bytes)
                     check_dim_buffer(buf_src, len, source);
 
-                    printf("L , len: %d", len);
+                    // printf("L , len: %d", len);
                     //printf("\n");
                     // copio elemento per elemento
                     for (int i = 0; i < len; ++i, buf_dest->mark++) {
@@ -498,7 +506,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                     len = notag_value + 1;
                     buf_src->mark++;
                     check_dim_buffer(buf_src, len, source);
-                    printf("L , len: %d", len);
+                    // printf("L , len: %d", len);
                     // copio elemento per elemento
                     //printf("\n");
                     for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
@@ -535,7 +543,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                 *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
                 //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
             }
-            printf("01 , len: %d, off: %d", len, offset);
+            // printf("01 , len: %d, off: %d", len, offset);
             break;
         case 2: //do_copy(buf_src, buf_dest, source, 2); break;
             buf_dest->mark_copy = buf_dest->mark;
@@ -559,7 +567,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                 *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
                 //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
             }
-            printf("10 , len: %d, off: %d", len, offset);
+            // printf("10 , len: %d, off: %d", len, offset);
             break;
         case 3: //do_copy(buf_src, buf_dest, source, 3); break;
             buf_dest->mark_copy = buf_dest->mark;
@@ -585,7 +593,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                 *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
                 //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
             }
-            printf("11 , len: %d, off: %d", len, offset);
+            // printf("11 , len: %d, off: %d", len, offset);
             break;
         default:break;
     }
