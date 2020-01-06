@@ -47,8 +47,8 @@ void compare_files(char *f1_name, char *f2_name) {
         // error is incremented
         if (ch1 != ch2) {
             error++;
-            printf("Line Number : %d \tError"
-                   " Position : %d \n", line, pos);
+            //printf("Line Number : %d \tError"
+             //      " Position : %d \n", line, pos);
         }
 
         // fetching character until end of file
@@ -58,6 +58,7 @@ void compare_files(char *f1_name, char *f2_name) {
     fclose(f1);
     fclose(f2);
     printf("Total Errors : %d\t", error);
+    puts("");
 }
 
 void create_test_files(FILE *source) {
@@ -96,9 +97,10 @@ void write_result_compression(unsigned long long finput_size, unsigned long long
             finput_size/(time_taken * 1e6));
     fclose(csv);
 }
+
 void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
 {
-    FILE *csv = open_write("..\\Standard_test\\risultati_decompressione.csv");
+    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione.csv");
     fprintf(csv, "%llu, %llu, %f, %f\n",
             finput_size,
             fdecompressed_size,
@@ -134,6 +136,7 @@ void run_test(char *finput_name, char*foutput_name, Mode mode){
         print_result_compression(foutput_size);
         write_result_compression(finput_size, foutput_size);
     } else {
+        print_result_decompression(foutput_size, finput_size);
         write_result_decompressione(finput_size, foutput_size);
     }
 
@@ -162,18 +165,20 @@ int main(){
                     "..\\Standard_test\\%ub%d.snp", dim[i], j);
             sprintf(fdecompressed_name,
                     "..\\Standard_test\\%ub%ddec", dim[i], j);
-            
-            //-----------------------Compressione----------------------
-            printf("\n------------------------------------------------------\n");
-            printf("Compressione di %s\n\n", fcompressed_name);
-            run_test(finput_name, fcompressed_name, compress);
 
-            //-----------------------Decompressione----------------------
+            for (int k = 0; k < 1000; ++k) {
+                
+                //-----------------------Compressione----------------------
+                printf("\n------------------------------------------------------\n");
+                printf("Compressione di %s\n\n", fcompressed_name);
+                run_test(finput_name, fcompressed_name, compress);
 
-            printf("\n------------------------------------------------------\n");
-            printf("Compressione di %s\n\n", fcompressed_name);
-            run_test(fcompressed_name, fcompressed_name, uncompress);
+                //-----------------------Decompressione----------------------
 
+                printf("\n------------------------------------------------------\n");
+                printf("Decompressione di %s\n\n", fcompressed_name);
+                run_test(fcompressed_name, fdecompressed_name, uncompress);
+            }
             printf("------------------------------------------------------\n\n");
             printf("CHECK INTEGRITY\n\n");
 
