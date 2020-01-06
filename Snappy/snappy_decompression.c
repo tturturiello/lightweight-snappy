@@ -1,6 +1,15 @@
 //
 // Created by Timothy Turturiello on 30.11.19.
 //
+// 200000 b1
+// 200000 b2
+
+// 500000 b1
+// 500000 b2
+
+// 800000 b1
+// 800000 b2
+
 #ifndef __CLEAR__
 #define __CLEAR__
 //#pragma clang diagnostic pop
@@ -26,6 +35,13 @@
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
 #define BUFFER_DIM 65536 + 5 // caso peggiore: 5 byte per esprimere un literal lungo 65536
+
+/*
+ * rispetto requisiti
+ * soluzione proposta
+ * Converter (strutture)
+ * procedure test (risultati)
+*/
 
 /*
  * rispetto requisiti
@@ -97,7 +113,6 @@ unsigned long long get_file_size(FILE *file);
 #endif
 
 static double time_taken;
-/*
 int main()
 {
     clock_t time = clock();
@@ -142,14 +157,13 @@ int main()
     fwrite(buf_dest->array, sizeof(char), uncomp_dim, destination);
 
     time = clock() - time;
-    double time_taken = ((double)time)/CLOCKS_PER_SEC;
+    //double time_taken = ((double)time)/CLOCKS_PER_SEC;
     //printf("tempo di esecuzione: %ld",time_taken);
 
     print_result_decompression(get_file_size(destination), get_file_size(source));
     // test();
     return 0;
 }
-*/
 
 int open_resources(FILE **file_in, FILE **file_out)
 {
@@ -526,6 +540,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
 
             extra_bytes = 1; // di lettura offset
             check_dim_buffer(buf_src, extra_bytes, source);
+            check_dim_buffer(buf_src, len, source);
             // leggo gli extra byte
             converter.byte_arr[0] = *buf_next_elem(buf_src);
             offset = converter.value;
@@ -551,6 +566,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
             extra_bytes = 2;
             len = notag_value+1;
             check_dim_buffer(buf_src, extra_bytes, source);
+            check_dim_buffer(buf_src, len, source);
 
             converter.byte_arr[0] = *buf_next_elem(buf_src);
             converter.byte_arr[1] = *buf_next_elem(buf_src);
@@ -575,6 +591,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
             extra_bytes = 4;
             len = notag_value+1;
             check_dim_buffer(buf_src, extra_bytes, source);
+            check_dim_buffer(buf_src, len, source);
 
             converter.byte_arr[0] = *buf_next_elem(buf_src);
             converter.byte_arr[1] = *buf_next_elem(buf_src);
@@ -677,4 +694,3 @@ void write_result_decompression(unsigned long long fdecompressed_size)
             mbps);
     fclose(csv);
 }
-
