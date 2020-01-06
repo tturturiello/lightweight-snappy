@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include "IO_utils.h"
 #include "snappy_compression.h"
 //#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
@@ -26,19 +27,7 @@
  FILE *input;
  FILE *output;
 
-unsigned long long get_file_size(FILE *file) {
-    unsigned long long size;
-    fseek(file, 0, SEEK_END);
-    size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    return size;
 
-/*    struct stat st;//TODO:?
-
-    if (stat(filename, &st) == 0)
-        return st.st_size;
-    else return -1;*/
-}
 
 int compression() {
 
@@ -52,7 +41,7 @@ int compression() {
     fcompressed = fopen(FCOMPRESSED_NAME, "wb");
     assert(fcompressed != NULL);
 
-    snappy_compress(finput, get_file_size(finput), fcompressed);
+    snappy_compress(finput, get_size(finput), fcompressed);
 
     if(fclose(finput) == 0)
         printf("Chiuso input compressione\n");
@@ -61,7 +50,7 @@ int compression() {
         printf("Chiuso output compressione\n");
 
     if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL)  {
-        print_result_compression(get_file_size(fcompressed));
+        print_result_compression(get_size(fcompressed));
     }
     fclose(finput);
 }
@@ -92,7 +81,7 @@ void open_output(char *output_name) {
 
 void show_result(char *output_name) {
     if((output = fopen(output_name, "rb") )!= NULL)  {
-        print_result_compression(get_file_size(output));
+        print_result_compression(get_size(output));
     }
     fclose(output);
 }
@@ -124,11 +113,11 @@ int main(int argc, char* argv[]){
 
     open_input(input_name);
     open_output(output_name);
-    unsigned long long input_size = get_file_size(input);
+    unsigned long long input_size = get_size(input);
     if(mode == compress){
         snappy_compress(input, input_size, output);
     } else if(mode == uncompress) {
-        //snappy_decompress(input, output);
+        snappy_decompress(input, output);
     }
 
     fclose(input);
