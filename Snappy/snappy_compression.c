@@ -98,9 +98,9 @@ static Buffer input;
 static Buffer output;
 static Compressor cmp;
 //Data for testing
-unsigned long long number_of_u32 = 0;
-unsigned long long collisions = 0;
-double time_taken = 0;
+static unsigned long long number_of_u32 = 0;
+static unsigned long long collisions = 0;
+static double time_taken = 0;
 
 
 /**
@@ -314,7 +314,6 @@ static inline void generate_hash_index() {
     //printf("%X %X %X %X\n", (char)input.current[0],(char)input.current[1], (char)input.current[2], (char)input.current[3]);//TODO
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
-    alternative_hash_bytes(cmp.current_u32);
     number_of_u32++;//TODO togliere?
 }
 

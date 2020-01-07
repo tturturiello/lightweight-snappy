@@ -5,55 +5,15 @@
 #include <string.h>
 #include "IO_utils.h"
 #include "snappy_compression.h"
-//#include "snappy_compression_tree.h"
+#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
 
 
-
-//------------Belli---------------------------------------------
-#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\5000b4"
-#define FCOMPRESSED_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Standard_test\\5000b4.snp"
-#define FDECOMPRESSED_NAME "..\\Compressed_test\\alice_decompressed.txt"
-
-/*
-
-
-//------------Turturiello---------------------------------------------
-#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Files_test/alice.txt"
-#define FCOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
-#define FDECOMPRESSED_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_decompressed.txt"
-*/
  static enum {compress, uncompress} mode;
- FILE *input;
- FILE *output;
+ static FILE *input;
+ static FILE *output;
 
 
-
-int compression() {
-
-    FILE *finput;
-    FILE *fcompressed;
-
-
-    //------------Compressione ---------------------------------------------
-    finput = fopen(FINPUT_NAME, "rb");
-    assert(finput != NULL);
-    fcompressed = fopen(FCOMPRESSED_NAME, "wb");
-    assert(fcompressed != NULL);
-
-    snappy_compress(finput, get_size(finput), fcompressed);
-
-    if(fclose(finput) == 0)
-        printf("Chiuso input compressione\n");
-
-    if(fclose(fcompressed) == 0)
-        printf("Chiuso output compressione\n");
-
-    if((fcompressed = fopen(FCOMPRESSED_NAME, "rb") )!= NULL)  {
-        print_result_compression(get_size(fcompressed));
-    }
-    fclose(finput);
-}
 
 void usage() {
     fprintf(stderr,

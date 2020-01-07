@@ -96,13 +96,13 @@ static unsigned int literal_length;//TODO in compressor
 //Data for testing
 unsigned long long number_of_u32 = 0;
 unsigned long long collisions = 0;
-double time_taken = 0;
+
 
 
 static inline unsigned int find_copy_length(char * current, char *candidate) {//TODO: max copy length? Incremental copy?
     const char *limit =  input.current + input.bytes_left;
     unsigned int length = 0;
-    for(; current <= limit; current++, candidate++){
+    for(; current < limit; current++, candidate++){
         if(*current == *candidate){
             length++;
         } else {
@@ -252,7 +252,7 @@ static inline u32 get_next_u32(const unsigned char *input) {
  */
 static inline void generate_hash_index() {
     cmp.current_u32 = get_next_u32(input.current);
-    cmp.current_index = hash_bytes(cmp.current_u32);
+    cmp.current_index =  hash_bytes(cmp.current_u32);
     number_of_u32++;//TODO togliere?
 }
 
@@ -326,7 +326,10 @@ static inline void reset_buffers() {
     reset_buffer(&output);
 }
 
-static void free_hash_table() {
+static void free_hash_table_tree() {
+    for (int i = 0; i < cmp.htable_size; i++) {
+        free_tree(cmp.hash_table[i]);
+    }
     free(cmp.hash_table);
 }
 
@@ -364,7 +367,7 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
-void print_htable_tree() {
+static void print_htable_tree() {
     for (int i = 0; i < cmp.htable_size; ++i) {
         print_tree_inorder(cmp.hash_table[i]);
     }
@@ -375,11 +378,6 @@ void print_htable_tree() {
 
 int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER start;
-    LARGE_INTEGER end;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&start);
 
     init_environment(file_input, input_size, file_compressed);
     write_dim_varint();
@@ -392,11 +390,9 @@ int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *
         reset_buffers();
         load_next_block();
     }
-    free_hash_table();
+    free_hash_table_tree();
     free_buffers();
 
-    QueryPerformanceCounter(&end);
-    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
 
 }
 
@@ -414,31 +410,8 @@ void print_result_compression_tree(unsigned long long fcompressed_size) {
 
     printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
 
-    printf("\nCompression took %f seconds to execute\n", time_taken);
-    printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 
-
-/*    puts("\n\nBuffer in input");
-    for(int i = 0; beginning + i < input_limit; i++){
-        printf("%3d: %X ", i, *(beginning+i));
     }
 
-    puts("\n\nBuffer in output");
-    for(int i = 0; out_beginning + i <= output; i++){
-        printf("%X ", *(out_beginning+i));
-    }*/
-
-}
-
-void write_result_compression_tree(unsigned long long fcompressed_size){
-    FILE *csv = fopen("..\\Standard_test\\risultati_compressione_tree.csv", "a");
-    assert(csv!=NULL);
-    fprintf(csv, "%llu, %llu, %f, %f, %f\n", finput_size,
-            fcompressed_size,
-            (double)finput_size / (double)fcompressed_size ,
-            time_taken,
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
 
 
