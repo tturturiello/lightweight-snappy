@@ -1,14 +1,6 @@
 //
 // Created by Timothy Turturiello on 30.11.19.
 //
-// 200000 b1
-// 200000 b2
-
-// 500000 b1
-// 500000 b2
-
-// 800000 b1
-// 800000 b2
 
 #ifndef __CLEAR__
 #define __CLEAR__
@@ -34,14 +26,7 @@
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
-#define BUFFER_DIM 65536 + 5 // caso peggiore: 5 byte per esprimere un literal lungo 65536
-
-/*
- * rispetto requisiti
- * soluzione proposta
- * Converter (strutture)
- * procedure test (risultati)
-*/
+#define BUFFER_DIM 65536+(65536/65)+10 // caso peggiore
 
 /*
  * rispetto requisiti
@@ -631,13 +616,15 @@ unsigned long long get_file_size(FILE *file) {
 int snappy_decompress(FILE *file_input, FILE *file_decompressed)
 {
     clock_t time = clock();
-    unsigned long uncomp_dim = varint_to_dim(file_input);
 
     Buffer *buf_src = (Buffer*)malloc(sizeof(Buffer));
     char container_0[BUFFER_DIM];
     buf_src->mark=0;
     buf_src->mark_copy=0;
     buf_src->array = container_0;
+
+    //unsigned long uncomp_dim = varint_to_dim(file_input);
+    unsigned long uncomp_dim = str_varint_to_dim_mark((unsigned char *) buf_src->array, &buf_src->mark);
 
     Buffer *buf_dest = (Buffer*)malloc(sizeof(Buffer));
     char container[uncomp_dim];

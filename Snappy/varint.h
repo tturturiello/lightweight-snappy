@@ -11,4 +11,6 @@ int varint_to_dim(FILE *source);
 
 int str_varint_to_dim_(unsigned char *varint);
 
+int str_varint_to_dim_mark(unsigned char *varint, unsigned long *mark);
+
 #endif

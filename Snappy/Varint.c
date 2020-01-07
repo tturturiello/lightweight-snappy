@@ -45,3 +45,20 @@ int str_varint_to_dim_(unsigned char *varint)
     } while ((byte_buf & mask_condition)!=0);
     return result;
 }
+
+int str_varint_to_dim_mark(unsigned char *varint, unsigned long *mark)
+{
+    unsigned char mask_condition = 0x80;
+    unsigned char mask_value = 0x7f; // ~mask_condition
+    unsigned char byte_buf;
+    int multiplier = 1;
+    int result = 0;
+
+    do {
+        byte_buf = *(varint++);
+        result += (((int)(byte_buf&mask_value)) * multiplier);
+        multiplier *= 128; // equivale a shiftare di 7 bit
+        (*mark)++;
+    } while ((byte_buf & mask_condition)!=0);
+    return result;
+}
