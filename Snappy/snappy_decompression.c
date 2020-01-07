@@ -26,7 +26,7 @@
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
-#define BUFFER_DIM 65536+(65536/55)+5 // caso peggiore
+#define BUFFER_DIM (65536+(65536/55)+5)*2 // caso peggiore
 
 /*
  * rispetto requisiti
