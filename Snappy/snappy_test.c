@@ -89,7 +89,7 @@ void stop_time() {
 }
 
 void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
-    FILE *csv = open_append("..\\Standard_test\\risultati_compressione_tree.csv");
+    FILE *csv = open_append("..\\Standard_test\\risultati_compressione.csv");
     fprintf(csv, "%llu, %llu, %f, %f, %f\n",
             finput_size,
             fcompressed_size,
@@ -101,7 +101,7 @@ void write_result_compression(unsigned long long finput_size, unsigned long long
 
 void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
 {
-    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione.csv");
+    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione_1120K.csv");
     fprintf(csv, "%llu, %llu, %f, %f\n",
             finput_size,
             fdecompressed_size,
@@ -121,7 +121,7 @@ void run_test(char *finput_name, char*foutput_name, Mode mode){
 
     start_time();
     if(mode == compress)
-        snappy_compress_tree(finput, finput_size, foutput);
+        snappy_compress(finput, finput_size, foutput);
     else
         snappy_decompress(finput, foutput);
     stop_time();
@@ -135,10 +135,10 @@ void run_test(char *finput_name, char*foutput_name, Mode mode){
     unsigned long long foutput_size = get_size(foutput);
     if(mode == compress) {
         //print_result_compression_tree(foutput_size);
-        write_result_compression(finput_size, foutput_size);
+        //write_result_compression(finput_size, foutput_size);
     } else {
         //print_result_decompression(foutput_size, finput_size);
-        //write_result_decompressione(finput_size, foutput_size);
+        write_result_decompressione(finput_size, foutput_size);
     }
 
     fclose(foutput);
@@ -163,22 +163,22 @@ int main(){
 
             sprintf(finput_name, "..\\Standard_test\\%ub%d", dim[i], j);
             sprintf(fcompressed_name,
-                    "..\\Standard_test\\%ub%d_tree.snp", dim[i], j);
+                    "..\\Standard_test\\%ub%d.snp", dim[i], j);
             sprintf(fdecompressed_name,
                     "..\\Standard_test\\%ub%ddec", dim[i], j);
+            //-----------------------Compressione----------------------
+            //printf("\n------------------------------------------------------\n");
+            printf("Compressione di %s\n\n", fcompressed_name);
+            //run_test(finput_name, fcompressed_name, compress);
+            for (int k = 0; k < 500; ++k) {
 
-            for (int k = 0; k < 100; ++k) {
 
-                //-----------------------Compressione----------------------
-                //printf("\n------------------------------------------------------\n");
-                //printf("Compressione di %s\n\n", fcompressed_name);
-                run_test(finput_name, fcompressed_name, compress);
                 //-----------------------Decompressione----------------------
-            }
-                //printf("\n------------------------------------------------------\n");
-                printf("Decompressione di %s\n\n", fcompressed_name);
-                run_test(fcompressed_name, fdecompressed_name, uncompress);
 
+                //printf("\n------------------------------------------------------\n");
+                //printf("Decompressione di %s\n\n", fcompressed_name);
+                run_test(fcompressed_name, fdecompressed_name, uncompress);
+            }
             printf("------------------------------------------------------\n\n");
             printf("CHECK INTEGRITY\n\n");
 
