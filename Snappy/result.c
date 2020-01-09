@@ -60,6 +60,16 @@ void print_result_compression(unsigned long long fcompressed_size, unsigned long
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 }
 
+void print_result_decompression(unsigned long long fdecompressed_size, unsigned long long int finput_size) {
+
+    printf("\nDimensione file compresso = %llu bytes\n", finput_size);
+
+    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
+
+    printf("\nCompression took %f seconds to execute\n", time_taken);
+    printf("%f MB/s\n", finput_size/(time_taken * 1e6));
+}
+
 //TODO funzione presa da Geek..
 void compare_files(char *f1_name, char *f2_name) {
 

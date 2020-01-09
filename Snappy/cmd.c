@@ -10,7 +10,7 @@
 #include "result.h"
 
 
-static enum {compress, uncompress} mode;
+static enum {compress, compress_tree, uncompress} mode;
  static FILE *input;
  static FILE *output;
 
@@ -20,7 +20,7 @@ void usage() {
     fprintf(stderr,
             "snappy [-c|-d] [infile] [outfile]\n"
             "-c compressione\n"
-            "-d decompressione\n"
+            "-d decompressione\n"//TODO
             "Comprimi o decomprimi un file con snappy\n");
     exit(EXIT_FAILURE);
 }
@@ -42,43 +42,58 @@ void open_output(char *output_name) {
 
 void show_result(char *output_name, unsigned long long int finput_size) {
     output = open_read(output_name);
-    print_result_compression(get_size(output), finput_size);
+    if(mode == uncompress)
+        print_result_decompression(get_size(output), finput_size);
+    else
+        print_result_compression(get_size(output), finput_size);
+
 
     fclose(output);
 }
 
 int main(int argc, char* argv[]){
 
+    int print_result = 0;
     int opt;
 
     if(argc < 4){
         usage();
     }
-    while ((opt = getopt(argc, argv, "cd")) != -1) {
+    while ((opt = getopt(argc, argv, "ctdr")) != -1) {
         switch (opt) {
             case 'c':
                 mode = compress;
                 printf("compressione\n");
                 break;
+            case 't':
+                mode = compress_tree;
+                printf("compressione bst\n");
+                break;
             case 'd':
                 mode = uncompress;
                 printf("decompressione\n");
+                break;
+            case 'r':
+                print_result = 1;
+                printf("Mostro risultati\n");
                 break;
             default:
                 usage();
         }
     }
 
-    char *input_name = argv[2];
-    char *output_name = argv[3];
+    char *input_name = argv[argc - 2];
+    char *output_name = argv[argc - 1];
 
     open_input(input_name);
     open_output(output_name);
     unsigned long long input_size = get_size(input);
-    
+    //TODO file larger 4GB? get_size = 0?
     start_time();
     if(mode == compress){
         snappy_compress(input, input_size, output);
+    } else if(mode == compress_tree) {
+        snappy_compress_tree(input, input_size, output);
     } else if(mode == uncompress) {
         snappy_decompress(input, output);
     }
@@ -87,9 +102,8 @@ int main(int argc, char* argv[]){
     fclose(input);
     fclose(output);
 
-    show_result(output_name, input_size);
-
-    //TODO compressione non avvenuta?
+    if(print_result)
+        show_result(output_name, input_size);
 }
 
 

@@ -396,22 +396,5 @@ int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *
 
 }
 
-void print_result_compression_tree(unsigned long long fcompressed_size) {
-
-    //TODO check se un compressione ? avvenuta
-
-    printf("\nDimensione file originale = %llu bytes\n", finput_size);
-
-    printf("Dimensione file compresso = %llu bytes\n", fcompressed_size);
-
-    double comp_ratio = (double)fcompressed_size / (double)finput_size;
-    printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
-    printf("Saving %f%%\n", (1 - comp_ratio)*100 );
-
-    printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
-
-
-    }
-
 
 
