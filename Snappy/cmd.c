@@ -7,9 +7,10 @@
 #include "snappy_compression.h"
 #include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
+#include "result.h"
 
 
- static enum {compress, uncompress} mode;
+static enum {compress, uncompress} mode;
  static FILE *input;
  static FILE *output;
 
@@ -39,10 +40,10 @@ void open_output(char *output_name) {
     }
 }
 
-void show_result(char *output_name) {
-    if((output = fopen(output_name, "rb") )!= NULL)  {
-        print_result_compression(get_size(output));
-    }
+void show_result(char *output_name, unsigned long long int finput_size) {
+    output = open_read(output_name);
+    print_result_compression(get_size(output), finput_size);
+
     fclose(output);
 }
 
@@ -74,16 +75,19 @@ int main(int argc, char* argv[]){
     open_input(input_name);
     open_output(output_name);
     unsigned long long input_size = get_size(input);
+    
+    start_time();
     if(mode == compress){
         snappy_compress(input, input_size, output);
     } else if(mode == uncompress) {
         snappy_decompress(input, output);
     }
-
+    stop_time();
+    
     fclose(input);
     fclose(output);
 
-    show_result(output_name);
+    show_result(output_name, input_size);
 
     //TODO compressione non avvenuta?
 }

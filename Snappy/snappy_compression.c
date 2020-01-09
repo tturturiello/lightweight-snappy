@@ -478,23 +478,6 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
 
 }
 
-void print_result_compression(unsigned long long fcompressed_size) {
-
-    printf("\nDimensione file originale = %llu bytes\n", finput_size);
-
-    printf("Dimensione file compresso = %llu bytes\n", fcompressed_size);
-
-    double comp_ratio = (double)fcompressed_size / (double)finput_size;
-    printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
-    printf("Saving %f%%\n", (1 - comp_ratio)*100 );
-
-    printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
-    printf("Numero di collisioni = %llu\n", collisions );
-    printf("In percentuale: %f%%\n", ((double)collisions / (double)number_of_u32)*100 );
-
-    printf("\nCompression took %f seconds to execute\n", time_taken);
-    printf("%f MB/s\n", finput_size/(time_taken * 1e6));
-}
 
 
 

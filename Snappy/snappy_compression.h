@@ -6,6 +6,6 @@
 #define SNAPPY_SNAPPY_COMPRESSION_H
 
 int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed);
-void print_result_compression(unsigned long long fcompressed_size);
+void print_result_compression(unsigned long long fcompressed_size, unsigned long long int finput_size);
 
 #endif //SNAPPY_SNAPPY_COMPRESSION_H

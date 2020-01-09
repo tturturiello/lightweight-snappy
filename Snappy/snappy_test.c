@@ -9,58 +9,11 @@
 #include "snappy_compression.h"
 #include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
+#include "result.h"
 
 unsigned int dim[] ={500, 1000, 2000, 5000, 10000, 20000, 50000, 80000, 100000, 200000, 500000, 800000, 1000000};
-static double time_taken = 0;
-LARGE_INTEGER frequency;
-LARGE_INTEGER start;
-LARGE_INTEGER end;
+
 typedef enum {compress, uncompress} Mode;
-
-
-void compare_files(char *f1_name, char *f2_name) {
-
-    FILE * f1 = open_read(f1_name);
-    FILE * f2 = open_read(f2_name);
-    // fetching character of two file
-    // in two variable ch1 and ch2
-    char ch1 = getc(f1);
-    char ch2 = getc(f2);
-
-    // error keeps track of number of errors
-    // pos keeps track of position of errors
-    // line keeps track of error line
-    int error = 0, pos = 0, line = 1;
-
-    // iterate loop till end of file
-    while (ch1 != EOF && ch2 != EOF) {
-        pos++;
-
-        // if both variable encounters new
-        // line then line variable is incremented
-        // and pos variable is set to 0
-        if (ch1 == '\n' && ch2 == '\n') {
-            line++;
-            pos = 0;
-        }
-
-        // if fetched data is not equal then
-        // error is incremented
-        if (ch1 != ch2) {
-            error++;
-            //printf("Line Number : %d \tError"
-             //      " Position : %d \n", line, pos);
-        }
-
-        // fetching character until end of file
-        ch1 = getc(f1);
-        ch2 = getc(f2);
-    }
-    fclose(f1);
-    fclose(f2);
-    printf("Total Errors : %d\t", error);
-    puts("");
-}
 
 void create_test_files(FILE *source) {
     char test_name[60];
@@ -78,37 +31,6 @@ void create_test_files(FILE *source) {
     }
 }
 
-void start_time() {
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&start);
-}
-
-void stop_time() {
-    QueryPerformanceCounter(&end);
-    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
-}
-
-void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
-    FILE *csv = open_append("..\\Standard_test\\risultati_compressione.csv");
-    fprintf(csv, "%llu, %llu, %f, %f, %f\n",
-            finput_size,
-            fcompressed_size,
-            (double)finput_size / (double)fcompressed_size ,
-            time_taken,
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
-
-void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
-{
-    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione_1120K.csv");
-    fprintf(csv, "%llu, %llu, %f, %f\n",
-            finput_size,
-            fdecompressed_size,
-            time_taken,
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
 
 void run_test(char *finput_name, char*foutput_name, Mode mode){
     FILE *finput;
