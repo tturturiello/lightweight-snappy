@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "IO_utils.h"
 #include "snappy_compression.h"
 #include "snappy_compression_tree.h"

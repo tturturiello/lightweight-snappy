@@ -26,7 +26,7 @@
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
-#define BUFFER_DIM (65536+(65536/55)+5)*2 // caso peggiore
+#define BUFFER_DIM (65536+(65536/65)+5)*2 // caso peggiore
 
 /*
  * rispetto requisiti
@@ -170,16 +170,32 @@ void close_resources(FILE *file_in, FILE *file_out)
     fclose(file_out);
 }
 
+/**
+ * Assegna il valore 0 ai campi del buffer
+ * @param buffer
+ */
 void reset_buffer(Buffer *buffer)
 {
     buffer->mark = 0;
+    buffer->mark_copy = 0;
 }
 
+/**
+ * Inizializza la struttura di conversione assegnando il valore 0 ai suoi campi
+ * @param converter
+ */
 void init_converter(Converter *converter)
 {
     converter->value=0;
 }
 
+/**
+ * Inizializza la struttura Buffer assegnando il valore 0 ai suoi campi
+ * alloca memoria sulla heap per un array che viene puntato dal puntatore char* array della struttura Buffer
+ * @param buffer
+ * @param buf_dim
+ * @param container
+ */
 void init_buffer(Buffer *buffer, const unsigned long* buf_dim, char container[*buf_dim])
 {
     container = (char *) malloc(sizeof(*buf_dim));
@@ -188,6 +204,11 @@ void init_buffer(Buffer *buffer, const unsigned long* buf_dim, char container[*b
     buffer->array = container;
 }
 
+/**
+ * Alloca memoria sulla heap per la struttura Buffer e la inizializza
+ * @param buf_dim
+ * @return
+ */
 Buffer *buffer_constructor(unsigned long buf_dim)
 {
     Buffer *buffer = (Buffer*)malloc(sizeof(Buffer));
@@ -202,17 +223,32 @@ void flush(Buffer *buf_out, FILE *infile, unsigned long dim)
     fread(buf_out->array, sizeof(char), dim, infile);
 }
 
+/**
+ * Restituisce l'elemento corrente del buffer relativo all'indice, mark all'interno della struttra Buffer
+ * @param buffer
+ * @return
+ */
 char* buf_curr_elem(Buffer *buffer)
 {
     return &(buffer->array[buffer->mark]);
 }
 
+/**
+ * Restituisce l'elemento successivo del buffer relativo all'indice mark+1, all'interno della struttra Buffer
+ * @param buffer
+ * @return
+ */
 char* buf_next_elem(Buffer *buffer)
 {
     buffer->mark++;
     return &(buffer->array[buffer->mark]);
 }
 
+/**
+ * Restituisce l'elemento relativo a un offset del buffer con indice mark_copy, all'interno della struttra Buffer
+ * @param buffer
+ * @return
+ */
 char* buf_rel_elem(Buffer *buffer)
 {
     return &(buffer->array[buffer->mark_copy]);
@@ -235,8 +271,7 @@ int is_readable(Buffer *buffer, unsigned long n_bytes, unsigned int length)
 }
 
 /**
- * Controlla che i prossimi byte da leggere siano effettivamente contenuti nel buffer.
- *
+ * Controlla che i prossimi byte da leggere siano effettivamente contenuti nel buffer su cui si sta lavorando.
  * @param buffer
  * @param bytes_number
  * @return 1 se il buffer contiene le informazioni
@@ -253,7 +288,6 @@ int is_in_buffer(Buffer *buffer, unsigned int bytes_number)
 /**
  * Effettua una chiamata a sistema per leggere da file di input,
  * se il buffer su cui si sta lavorando risulta effetivamente pieno.
- *
  * @param buf_src
  * @param to_check
  * @param source
@@ -414,41 +448,14 @@ void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int mode)
     }
 }
 
-void do_copy_01(Buffer *buf_src, Buffer *buf_dest, FILE *source)
-{
-    unsigned char curr_byte = *buf_curr_elem(buf_src); // byte corrente
-
-    unsigned char mask_dx_notag = 0x1C;
-    unsigned char mask_sx_notag = 0xE0;
-
-    unsigned char extra_bytes = 1; // numero di byte associati
-    unsigned int offset;
-    unsigned int len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
-
-    Converter converter;
-    init_converter(&converter);
-
-    // bit piu' significativi nel byte di tag
-    converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
-
-    if (!is_readable(buf_src, extra_bytes, len)) {
-        fseek(source, - (BUFFER_DIM - buf_src->mark), 1);
-        fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
-        buf_src->mark = 0;
-    }
-    // leggo gli extra byte
-    converter.byte_arr[0] = *buf_next_elem(buf_src);
-    offset = converter.value;
-
-    // leggo a partire dall'offset
-    buf_dest->mark_copy -= offset;
-
-    // copio elemento per elemento
-    for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-        *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-    }
-}
-
+/**
+ * Decomprime le informazioni contenute nel buffer di sorgente buf_src e le scrive nel buffer di destinazione buf_dest.
+ * Effettua chiamate di controllo sui buffer.
+ * @param source
+ * @param buf_dest
+ * @param buf_src
+ * @return
+ */
 unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_src)
 {
     static unsigned long counter;
@@ -605,6 +612,7 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
     return len;
 }
 
+
 unsigned long long get_file_size(FILE *file) {
     unsigned long long size;
     fseek(file, 0, SEEK_END);
@@ -613,6 +621,15 @@ unsigned long long get_file_size(FILE *file) {
     return size;
 }
 
+/**
+ * Ospita la struttura principale dell'algoritmo di decompressione.
+ * Facendo uso di due buffer applica la funzione decompressor fintanto che
+ * il buffer di destinazione non raggiunge la dimensione del file non compresso,
+ * assunta nei primi byte del file compresso ed espressa in varint.
+ * @param file_input
+ * @param file_decompressed
+ * @return
+ */
 int snappy_decompress(FILE *file_input, FILE *file_decompressed)
 {
     clock_t time = clock();
@@ -652,4 +669,31 @@ int snappy_decompress(FILE *file_input, FILE *file_decompressed)
     free(buf_src);
     free(buf_dest);
     return 0;
+}
+
+void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size)
+{
+    printf("\nDimensione file compresso = %llu bytes\n", fcompressed_size);
+
+    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
+
+    // double comp_ratio = (double)fcompressed_size / (double)finput_size;
+    // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
+    // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
+
+    printf("\nDecompression took %f seconds to execute\n", time_taken);
+
+    printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
+}
+
+void write_result_decompression(unsigned long long fdecompressed_size)
+{
+    FILE *csv = fopen("..\\Standard_test\\risultati_decompressione.csv", "a");
+    assert(csv!=NULL);
+    fprintf(csv, "%llu, %llu, %f, %f\n",
+            dim_input,
+            dim_output,
+            t,
+            mbps);
+    fclose(csv);
 }
