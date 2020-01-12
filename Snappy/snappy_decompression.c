@@ -15,7 +15,6 @@
 #include <assert.h>
 #include "varint.h"
 #include "snappy_decompression.h"
-#include "snappy_compression.h"
 
 //#define FINPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Compressed_test/alice_compressed"
 //#define FOUTPUT_NAME "/Users/T/Desktop/Git_SNAPPY/asd20192020tpg3/Snappy/Decompressed_test/alice_de.txt"
@@ -27,7 +26,7 @@
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
 #define BUFFER_DIM (65536+(65536/65)+5)*2 // caso peggiore
-
+static int counter_lit;
 /*
  * rispetto requisiti
  * soluzione proposta
@@ -87,18 +86,17 @@ char* buf_rel_elem(Buffer *buffer);
 
 float lose_data(FILE *destination, float desired_dim);
 
-void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source);
+void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter, unsigned char notag_value);
 
-void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int mode);
+int do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter);
 
-void do_copy_01(Buffer *buf_src, Buffer *buf_dest, FILE *source);
+void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size);
 
 unsigned long long get_file_size(FILE *file);
 
 #endif
 
 static double time_taken;
-/*
 int main()
 {
     clock_t time = clock();
@@ -147,10 +145,11 @@ int main()
     //printf("tempo di esecuzione: %ld",time_taken);
 
     print_result_decompression(get_file_size(destination), get_file_size(source));
+
     // test();
     return 0;
 }
-*/
+
 int open_resources(FILE **file_in, FILE **file_out)
 {
     if ((*file_in = fopen(FINPUT_NAME, "rb"))== NULL) {
@@ -301,18 +300,11 @@ void check_dim_buffer(Buffer *buf_src, unsigned int to_check, FILE *source)
     }
 }
 
-void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source)
+void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter, unsigned char notag_value)
 {
+    counter_lit++;
     unsigned char extra_bytes = 0; // numero di byte associati
     unsigned int len = 0;
-
-    unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
-    unsigned char mask_tag = 0x03;
-    unsigned char mask_notag = ~mask_tag;
-    unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
-
-    Converter converter;
-    init_converter(&converter);
 
     switch (notag_value) {
         case 63:
@@ -324,128 +316,80 @@ void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source)
         case 60:
             extra_bytes++;
 
+            // check_dim_buffer(buf_src, extra_bytes)
             check_dim_buffer(buf_src, extra_bytes, source);
-            // converto i byte associati alla lunghezza del buffer in valore intero
-            for (int i = extra_bytes; i > 0; i--) {
-                buf_src->mark++;
-                converter.byte_arr[i - 1] = (char) (buf_src->array[buf_src->mark] + 1);
-            }
 
-            len = converter.value;
+            // converto i byte associati alla lunghezza del buffer in valore intero
+            for (int i = 0; i < extra_bytes; i++) {
+                buf_src->mark++;
+                (*converter).byte_arr[i] = (char) (buf_src->array[buf_src->mark]);
+            }
+            len = (*converter).value + 1;
+
+            // check_dim_buffer(buf_src, extra_bytes)
             check_dim_buffer(buf_src, len, source);
 
+            // printf("L , len: %d", len);
+            //printf("\n");
             // copio elemento per elemento
             for (int i = 0; i < len; ++i, buf_dest->mark++) {
                 buf_src->mark++;
                 *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
             }
             break;
-        default: // <60 len = val+1
+        default: // <60 len = val+1, extra_bytes = 0
             len = notag_value + 1;
             buf_src->mark++;
-            check_dim_buffer(buf_src, extra_bytes, source);
+            check_dim_buffer(buf_src, len, source);
+            // printf("L , len: %d", len);
             // copio elemento per elemento
+            //printf("\n");
             for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
                 *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
+                // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
             }
             buf_src->mark--;
     }
 }
 
-void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int mode)
+/**
+ * Trascrive la copia trovata sullo stesso buffer di destinazione.
+ * effettua le chiamate necessarie a controllare che la lettura delle informazioni siano contenute interamete nel buffer di sorgente.
+ * ritorna -1 se ci sono stati degli errori di lettura, 0 altrimenti
+ * @param buf_src
+ * @param buf_dest
+ * @param source
+ * @param extra_bytes
+ * @param len
+ * @param converter
+ * @return
+ */
+int do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter)
 {
-    buf_dest->mark_copy = buf_dest->mark;
-    Converter converter;
-    init_converter(&converter);
-
-    unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
-    unsigned char mask_tag = 0x03;
-    unsigned char mask_notag = ~mask_tag;
-    unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
-
-    unsigned char extra_bytes = 0; // numero di byte associati
     unsigned int offset = 0;
-    unsigned int len = 0;
+    check_dim_buffer(buf_src, extra_bytes, source);
+    check_dim_buffer(buf_src, len, source);
+    buf_dest->mark_copy = buf_dest->mark;
 
-    switch (mode) {
-        case 1:
-            extra_bytes = 1; // di lettura offset
-            unsigned char mask_dx_notag = 0x1C; // per la copia di tag 01
-            unsigned char mask_sx_notag = 0xE0; // per la copia di tag 01
-            len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
-
-            // bit piu' significativi nel byte di tag
-            converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
-
-            if (!is_readable(buf_src, extra_bytes, len)) {
-                fseek(source, - (BUFFER_DIM - buf_src->mark), 1);
-                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
-                buf_src->mark = 0;
-            }
-            // leggo gli extra byte
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            offset = converter.value;
-
-            // leggo a partire dall'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-            }
-        case 2:
-            extra_bytes = 2;
-            len = notag_value+1;
-            buf_dest->mark_copy = buf_dest->mark;
-
-            if (!is_readable(buf_src, extra_bytes, len)) {
-                fseek(source, - (BUFFER_DIM - buf_src->mark), 1);
-                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
-                buf_src->mark = 0;
-            }
-
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            converter.byte_arr[1] = *buf_next_elem(buf_src);
-            offset = converter.value;
-
-            // mi riporto all'inizio dei byte letti e applico l'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-
-            }
-        case 3:
-            buf_dest->mark_copy = buf_dest->mark;
-
-            extra_bytes = 4;
-            len = notag_value+1;
-
-            // copy is_readable
-            if (!is_readable(buf_src, extra_bytes, len)) {
-                fseek(source, - (BUFFER_DIM - buf_src->mark), 1);
-                fread(buf_src->array, sizeof(char),BUFFER_DIM,source);
-                buf_src->mark = 0;
-            }
-
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            converter.byte_arr[1] = *buf_next_elem(buf_src);
-            converter.byte_arr[2] = *buf_next_elem(buf_src);
-            converter.byte_arr[3] = *buf_next_elem(buf_src);
-
-            offset = converter.value;
-
-            // mi riporto all'inizio dei byte letti e applico l'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-            }
-            break;
-        default:break;
+    // leggo i byte extra
+    for (int j = 0; j < extra_bytes; ++j) {
+        (*converter).byte_arr[j] = *buf_next_elem(buf_src);
     }
+    offset = (*converter).value;
+    // check offset
+    if (buf_src->mark - offset < 0 || offset > BUFFER_DIM) {
+        return -1;
+    }
+
+    // leggo a partire dall'offset
+    buf_dest->mark_copy -= offset;
+
+    // copio elemento per elemento
+    for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
+        *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
+    }
+    return 0;
 }
 
 /**
@@ -463,20 +407,15 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
     unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
-
-    unsigned char mask_dx_notag = 0x1C; // per la copia di tag 01
-    unsigned char mask_sx_notag = 0xE0; // per la copia di tag 01
-
     unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
     unsigned char extra_bytes = 0; // numero di byte associati
-    unsigned int offset = 0;
     unsigned int len = 0;
     Converter converter;
     init_converter(&converter);
 
-    unsigned char mode = mask_tag & (curr_byte);
+    unsigned char mode = mask_tag & curr_byte;
     switch(mode) {
-        case 0: //do_literal(buf_src, buf_dest, source); break;
+        case 0: // do_literal(buf_src, buf_dest, source, &converter, notag_value); break;
             switch (notag_value) {
                 case 63:
                     extra_bytes++;
@@ -523,87 +462,24 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
                     buf_src->mark--;
             }
             break;
-        case 1: // do_copy_01(buf_src, buf_dest, source); break;
-            buf_dest->mark_copy = buf_dest->mark;
-
+        case 1: // copy 01
+            extra_bytes = 1; // di lettura offset
+            unsigned char mask_dx_notag = 0x1C;
+            unsigned char mask_sx_notag = 0xE0;
             len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
-
             // bit piu' significativi nel byte di tag
             converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
-
-            extra_bytes = 1; // di lettura offset
-            check_dim_buffer(buf_src, extra_bytes, source);
-            check_dim_buffer(buf_src, len, source);
-            // leggo gli extra byte
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            offset = converter.value;
-
-            // check_offset
-            if (buf_src->mark - offset < 0) {
-                break;
-            }
-
-            // leggo a partire dall'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-                //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-            }
-            // printf("01 , len: %d, off: %d", len, offset);
+            do_copy(buf_src, buf_dest, source, extra_bytes, len, &converter);
             break;
-        case 2: //do_copy(buf_src, buf_dest, source, 2); break;
-            buf_dest->mark_copy = buf_dest->mark;
-
+        case 2: // copy 10
             extra_bytes = 2;
             len = notag_value+1;
-            check_dim_buffer(buf_src, extra_bytes, source);
-            check_dim_buffer(buf_src, len, source);
-
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            converter.byte_arr[1] = *buf_next_elem(buf_src);
-            offset = converter.value;
-            if (buf_src->mark - offset < 0 ) {
-                break;
-            }
-
-            // mi riporto all'inizio dei byte letti e applico l'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-                //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-            }
-            // printf("10 , len: %d, off: %d", len, offset);
+            do_copy(buf_src, buf_dest, source, extra_bytes, len, &converter);
             break;
-        case 3: //do_copy(buf_src, buf_dest, source, 3); break;
-            buf_dest->mark_copy = buf_dest->mark;
-
+        case 3: // copy 11
             extra_bytes = 4;
             len = notag_value+1;
-            check_dim_buffer(buf_src, extra_bytes, source);
-            check_dim_buffer(buf_src, len, source);
-
-            converter.byte_arr[0] = *buf_next_elem(buf_src);
-            converter.byte_arr[1] = *buf_next_elem(buf_src);
-            converter.byte_arr[2] = *buf_next_elem(buf_src);
-            converter.byte_arr[3] = *buf_next_elem(buf_src);
-
-            offset = converter.value;
-            if (buf_src->mark - offset < 0 || offset > BUFFER_DIM)
-                break;
-
-            // mi riporto all'inizio dei byte letti e applico l'offset
-            buf_dest->mark_copy -= offset;
-
-            // copio elemento per elemento
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-                *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
-                //printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-            }
-            // printf("11 , len: %d, off: %d", len, offset);
+            do_copy(buf_src, buf_dest, source, extra_bytes, len, &converter);
             break;
         default:break;
     }
