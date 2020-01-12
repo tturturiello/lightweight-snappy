@@ -25,8 +25,7 @@
 //#define FINPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Compressed_test\\alice_compressed.snp"
 //#define FOUTPUT_NAME "C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\asd20192020tpg3\\Snappy\\Decompressed_test\\alice_decompressed.txt"
 
-#define BUFFER_DIM (65536+(65536/65)+5)*2 // caso peggiore
-static int counter_lit;
+#define BUFFER_DIM 131072 // caso peggiore
 /*
  * rispetto requisiti
  * soluzione proposta
@@ -54,11 +53,13 @@ static float mbps;
 
 void test();
 
-void init_buffer(Buffer *buffer, const unsigned long *buf_dim, char container[*buf_dim]);
+void init_buffer(Buffer *buffer, const unsigned long buf_dim);
 
 void init_converter(Converter *converter);
 
 Buffer *buffer_constructor();
+
+int convert(Buffer *buffer, unsigned char num_bytes, Converter *converter);
 
 int is_in_buffer(Buffer *buffer, unsigned int bytes_number);
 
@@ -86,69 +87,50 @@ char* buf_rel_elem(Buffer *buffer);
 
 float lose_data(FILE *destination, float desired_dim);
 
-void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter, unsigned char notag_value);
+unsigned int do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter);
 
-int do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter);
+void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter);
 
 void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size);
 
 unsigned long long get_file_size(FILE *file);
 
-#endif
+void write_copy(Buffer *buffer, int len, unsigned int offset);
 
-static double time_taken;
+void write_literal(Buffer *destination, Buffer *source, unsigned int len);
+
+#endif
 int main()
 {
-    clock_t time = clock();
     FILE *source;
     FILE *destination;
     if (open_resources(&source, &destination))
-        return -1;
+        return 1;
 
     unsigned long uncomp_dim = varint_to_dim(source);
 
     // TODO: generalizzare attraverso dei costruttori
-    // Buffer *buf_src = (Buffer *) buffer_constructor(BUFFER_DIM);
-    // Buffer *buf_dest = (Buffer *) buffer_constructor(uncomp_dim);
-
-    Buffer *buf_src = (Buffer*)malloc(sizeof(Buffer));
-    char container_0[BUFFER_DIM];
-    buf_src->mark=0;
-    buf_src->mark_copy=0;
-    buf_src->array = container_0;
-
-    Buffer *buf_dest = (Buffer*)malloc(sizeof(Buffer));
-    char container[uncomp_dim];
-    buf_dest->mark=0;
-    buf_dest->mark_copy=0;
-    buf_dest->array = container;
+    Buffer *buf_src = (Buffer *) buffer_constructor(BUFFER_DIM);
+    Buffer *buf_dest = (Buffer *) buffer_constructor(uncomp_dim);
 
     // carico il buffer di 64kb del contenuto del file compresso
-    //flush(buffers.src, source, BUFFER_DIM);
     fread(buf_src->array, sizeof(char), BUFFER_DIM, source);
 
     int count = 0;
     unsigned long readed = 0;
+    //readed += do_literal(buf_src, buf_dest, source);
     do {
         count++;
-        // printf("%d) ",count);
         readed += decompressor(source, buf_dest, buf_src);
-        // printf("\n");
     } while (readed < uncomp_dim);
 
-    // wflush(buf_dest, buf_src, destination, source);
     // scrivo il contenuto del buffer principale nel file
     fwrite(buf_dest->array, sizeof(char), uncomp_dim, destination);
 
-    time = clock() - time;
-    //double time_taken = ((double)time)/CLOCKS_PER_SEC;
-    //printf("tempo di esecuzione: %ld",time_taken);
-
     print_result_decompression(get_file_size(destination), get_file_size(source));
-
-    // test();
     return 0;
 }
+
 
 int open_resources(FILE **file_in, FILE **file_out)
 {
@@ -195,12 +177,11 @@ void init_converter(Converter *converter)
  * @param buf_dim
  * @param container
  */
-void init_buffer(Buffer *buffer, const unsigned long* buf_dim, char container[*buf_dim])
+void init_buffer(Buffer *buffer, const unsigned long buf_dim)
 {
-    container = (char *) malloc(sizeof(*buf_dim));
     buffer->mark = 0;
     buffer->mark_copy = 0;
-    buffer->array = container;
+    buffer->array = (char *) malloc(sizeof(char)*(buf_dim));
 }
 
 /**
@@ -211,9 +192,7 @@ void init_buffer(Buffer *buffer, const unsigned long* buf_dim, char container[*b
 Buffer *buffer_constructor(unsigned long buf_dim)
 {
     Buffer *buffer = (Buffer*)malloc(sizeof(Buffer));
-    char container[buf_dim];
-    init_buffer(buffer, &buf_dim, container);
-
+    init_buffer(buffer, buf_dim);
     return buffer;
 }
 
@@ -278,7 +257,6 @@ int is_readable(Buffer *buffer, unsigned long n_bytes, unsigned int length)
 int is_in_buffer(Buffer *buffer, unsigned int bytes_number)
 {
     // se dalla posizione corrente si supera la dimensione del buffer leggendo i byte extra
-    long check_2 = buffer->mark + bytes_number;
     if (buffer->mark + bytes_number >= BUFFER_DIM)
         return 0;
     return 1;
@@ -300,11 +278,23 @@ void check_dim_buffer(Buffer *buf_src, unsigned int to_check, FILE *source)
     }
 }
 
-void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter, unsigned char notag_value)
+inline int convert(Buffer *buffer, unsigned char num_bytes, Converter *converter)
 {
-    counter_lit++;
+    for (int j = 0; j < num_bytes; ++j) {
+        (*converter).byte_arr[j] = *buf_next_elem(buffer);
+    }
+    return converter->value;
+}
+
+inline unsigned int do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *converter)
+{
     unsigned char extra_bytes = 0; // numero di byte associati
     unsigned int len = 0;
+
+    unsigned char mask_tag = 0x03;
+    unsigned char mask_notag = ~mask_tag;
+    unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
+    unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
 
     switch (notag_value) {
         case 63:
@@ -315,48 +305,33 @@ void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *conv
             extra_bytes++;
         case 60:
             extra_bytes++;
-
-            // check_dim_buffer(buf_src, extra_bytes)
             check_dim_buffer(buf_src, extra_bytes, source);
-
             // converto i byte associati alla lunghezza del buffer in valore intero
-            for (int i = 0; i < extra_bytes; i++) {
-                buf_src->mark++;
-                (*converter).byte_arr[i] = (char) (buf_src->array[buf_src->mark]);
-            }
-            len = (*converter).value + 1;
-
-            // check_dim_buffer(buf_src, extra_bytes)
+            len = convert(buf_src, extra_bytes, converter) + 1;
             check_dim_buffer(buf_src, len, source);
-
-            // printf("L , len: %d", len);
-            //printf("\n");
-            // copio elemento per elemento
-            for (int i = 0; i < len; ++i, buf_dest->mark++) {
-                buf_src->mark++;
-                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
-                // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-            }
+            write_literal(buf_dest, buf_src, len);
             break;
         default: // <60 len = val+1, extra_bytes = 0
             len = notag_value + 1;
-            buf_src->mark++;
             check_dim_buffer(buf_src, len, source);
-            // printf("L , len: %d", len);
-            // copio elemento per elemento
-            //printf("\n");
-            for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
-                // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-            }
-            buf_src->mark--;
+            write_literal(buf_dest, buf_src, len);
     }
+    return len;
+}
+
+inline void write_literal(Buffer *destination, Buffer *source, unsigned int len) {
+    source->mark++;
+    for (unsigned int i = 0; i < len; ++i, destination->mark++, source->mark++) {
+        *buf_curr_elem(destination) = *buf_curr_elem(source);
+        // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
+    }
+    source->mark--;
 }
 
 /**
  * Trascrive la copia trovata sullo stesso buffer di destinazione.
- * effettua le chiamate necessarie a controllare che la lettura delle informazioni siano contenute interamete nel buffer di sorgente.
- * ritorna -1 se ci sono stati degli errori di lettura, 0 altrimenti
+ * effettua le chiamate necessarie a controllare che la lettura delle informazioni siano
+ * contenute interamete nel buffer di sorgente.
  * @param buf_src
  * @param buf_dest
  * @param source
@@ -365,7 +340,7 @@ void do_literal(Buffer *buf_src, Buffer *buf_dest, FILE *source, Converter *conv
  * @param converter
  * @return
  */
-int do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter)
+void do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, int len, Converter *converter)
 {
     unsigned int offset = 0;
     check_dim_buffer(buf_src, extra_bytes, source);
@@ -373,23 +348,22 @@ int do_copy(Buffer *buf_src, Buffer *buf_dest, FILE *source, int extra_bytes, in
     buf_dest->mark_copy = buf_dest->mark;
 
     // leggo i byte extra
-    for (int j = 0; j < extra_bytes; ++j) {
-        (*converter).byte_arr[j] = *buf_next_elem(buf_src);
-    }
-    offset = (*converter).value;
+    offset = convert(buf_src, extra_bytes, converter);
     // check offset
     if (buf_src->mark - offset < 0 || offset > BUFFER_DIM) {
-        return -1;
+        return;
     }
 
+    write_copy(buf_dest, len, offset);
+}
+
+inline void write_copy(Buffer *buffer, int len, unsigned int offset) {
     // leggo a partire dall'offset
-    buf_dest->mark_copy -= offset;
-
+    buffer->mark_copy -= offset;
     // copio elemento per elemento
-    for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_dest->mark_copy++) {
-        *buf_curr_elem(buf_dest) = *buf_rel_elem(buf_dest);
+    for (unsigned int i = 0; i < len; ++i, buffer->mark++, buffer->mark_copy++) {
+        *buf_curr_elem(buffer) = *buf_rel_elem(buffer);
     }
-    return 0;
 }
 
 /**
@@ -404,10 +378,11 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
 {
     static unsigned long counter;
     //unsigned char curr_byte = (buf_src->array[buf_src->mark]); // corrente
-    unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
+    unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
     unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
+
     unsigned char extra_bytes = 0; // numero di byte associati
     unsigned int len = 0;
     Converter converter;
@@ -415,57 +390,13 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
 
     unsigned char mode = mask_tag & curr_byte;
     switch(mode) {
-        case 0: // do_literal(buf_src, buf_dest, source, &converter, notag_value); break;
-            switch (notag_value) {
-                case 63:
-                    extra_bytes++;
-                case 62:
-                    extra_bytes++;
-                case 61:
-                    extra_bytes++;
-                case 60:
-                    extra_bytes++;
-
-                    // check_dim_buffer(buf_src, extra_bytes)
-                    check_dim_buffer(buf_src, extra_bytes, source);
-
-                    // converto i byte associati alla lunghezza del buffer in valore intero
-                    for (int i = 0; i < extra_bytes; i++) {
-                        buf_src->mark++;
-                        converter.byte_arr[i] = (char) (buf_src->array[buf_src->mark]);
-                    }
-                    len = converter.value + 1;
-
-                    // check_dim_buffer(buf_src, extra_bytes)
-                    check_dim_buffer(buf_src, len, source);
-
-                    // printf("L , len: %d", len);
-                    //printf("\n");
-                    // copio elemento per elemento
-                    for (int i = 0; i < len; ++i, buf_dest->mark++) {
-                        buf_src->mark++;
-                        *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
-                        // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-                    }
-                    break;
-                default: // <60 len = val+1, extra_bytes = 0
-                    len = notag_value + 1;
-                    buf_src->mark++;
-                    check_dim_buffer(buf_src, len, source);
-                    // printf("L , len: %d", len);
-                    // copio elemento per elemento
-                    //printf("\n");
-                    for (unsigned int i = 0; i < len; ++i, buf_dest->mark++, buf_src->mark++) {
-                        *buf_curr_elem(buf_dest) = *buf_curr_elem(buf_src);
-                        // printf("%x, ", (unsigned char)*buf_curr_elem(buf_dest));
-                    }
-                    buf_src->mark--;
-            }
+        case 0:
+            len = do_literal(buf_src, buf_dest, source, &converter);
             break;
         case 1: // copy 01
             extra_bytes = 1; // di lettura offset
-            unsigned char mask_dx_notag = 0x1C;
-            unsigned char mask_sx_notag = 0xE0;
+            unsigned char mask_dx_notag = 0x1C; // 00011100
+            unsigned char mask_sx_notag = 0xE0; // 11100000
             len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
             // bit piu' significativi nel byte di tag
             converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
@@ -508,40 +439,19 @@ unsigned long long get_file_size(FILE *file) {
  */
 int snappy_decompress(FILE *file_input, FILE *file_decompressed)
 {
-    clock_t time = clock();
     unsigned long uncomp_dim = varint_to_dim(file_input);
-
-    Buffer *buf_src = (Buffer*)malloc(sizeof(Buffer));
-    char container_0[BUFFER_DIM];
-    buf_src->mark=0;
-    buf_src->mark_copy=0;
-    buf_src->array = container_0;
-
-    Buffer *buf_dest = (Buffer*)malloc(sizeof(Buffer));
-    char container[uncomp_dim];
-    buf_dest->mark=0;
-    buf_dest->mark_copy=0;
-    buf_dest->array = container;
+    Buffer *buf_src = (Buffer *) buffer_constructor(BUFFER_DIM);
+    Buffer *buf_dest = (Buffer *) buffer_constructor(uncomp_dim);
 
     fread(buf_src->array, sizeof(char), BUFFER_DIM, file_input);
-
-    int count = 0;
     unsigned long readed = 0;
     do {
-        count++;
         readed += decompressor(file_input, buf_dest, buf_src);
 
     } while (readed < uncomp_dim);
 
     // scrivo il contenuto del buffer principale nel file
     fwrite(buf_dest->array, sizeof(char), uncomp_dim, file_decompressed);
-    time = clock() - time;
-    t = time;
-    time_taken = ((double)time)/CLOCKS_PER_SEC;
-    dim_input = get_file_size(file_input);
-    dim_output = get_file_size(file_decompressed);
-    mbps = dim_output/(time_taken * 1e6);
-
     free(buf_src);
     free(buf_dest);
     return 0;
@@ -557,9 +467,8 @@ void print_result_decompression(unsigned long fdecompressed_size, unsigned long 
     // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
     // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
 
-    printf("\nDecompression took %f seconds to execute\n", time_taken);
-
-    printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
+    //printf("\nDecompression took %f seconds to execute\n", time_taken);
+    // printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
 }
 
 void write_result_decompression(unsigned long long fdecompressed_size)
