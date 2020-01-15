@@ -61,6 +61,7 @@ void run_test(char *finput_name, char*foutput_name, Mode mode){
     } else {
         //print_result_decompression(foutput_size, finput_size);
         write_result_decompressione(finput_size, foutput_size);
+        write_result_speed(finput_size, foutput_size);
     }
 
     fclose(foutput);
