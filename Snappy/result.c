@@ -33,11 +33,19 @@ void write_result_compression(unsigned long long finput_size, unsigned long long
 
 void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
 {
-    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione_1120K.csv");
+    FILE *csv = open_append("..\\Standard_test\\risultati_decompressione_1GB.csv");
     fprintf(csv, "%llu, %llu, %f, %f\n",
             finput_size,
             fdecompressed_size,
             time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+
+void write_result_speed(unsigned long long finput_size, unsigned long long fdecompressed_size)
+{
+    FILE *csv = open_append("..\\Standard_test\\risultati_speed_decomp_1GB_bufMin.csv");
+    fprintf(csv, "%f\n",
             finput_size/(time_taken * 1e6));
     fclose(csv);
 }

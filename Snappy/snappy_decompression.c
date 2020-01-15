@@ -53,11 +53,11 @@ static float mbps;
 
 void test();
 
-void init_buffer(Buffer *buffer, const unsigned long buf_dim);
+void init_buffer(Buffer *buffer, unsigned long buf_dim);
 
 void init_converter(Converter *converter);
 
-Buffer *buffer_constructor();
+Buffer *buffer_constructor(unsigned long buf_dim);
 
 int convert(Buffer *buffer, unsigned char num_bytes, Converter *converter);
 
@@ -269,12 +269,12 @@ int is_in_buffer(Buffer *buffer, unsigned int bytes_number)
  * @param to_check
  * @param source
  */
-void check_dim_buffer(Buffer *buf_src, unsigned int to_check, FILE *source)
+void check_dim_buffer(Buffer *buffer, unsigned int to_check, FILE *file)
 {
-    if (!is_in_buffer(buf_src, to_check)) {
-        fseek(source, -(BUFFER_DIM - buf_src->mark), 1);
-        fread(buf_src->array, sizeof(char), BUFFER_DIM, source);
-        buf_src->mark = 0;
+    if (!is_in_buffer(buffer, to_check)) {
+        fseek(file, -(BUFFER_DIM - buffer->mark), 1);
+        fread(buffer->array, sizeof(char), BUFFER_DIM, file);
+        buffer->mark = 0;
     }
 }
 
@@ -380,6 +380,8 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
     //unsigned char curr_byte = (buf_src->array[buf_src->mark]); // corrente
     unsigned char mask_tag = 0x03;
     unsigned char mask_notag = ~mask_tag;
+    unsigned char mask_dx_notag = 0x1C; // 00011100
+    unsigned char mask_sx_notag = 0xE0; // 11100000
     unsigned char curr_byte = *buf_curr_elem(buf_src); // corrente
     unsigned char notag_value = (mask_notag&(curr_byte)) >> 2;
 
@@ -395,8 +397,6 @@ unsigned long inline decompressor(FILE *source, Buffer *buf_dest, Buffer *buf_sr
             break;
         case 1: // copy 01
             extra_bytes = 1; // di lettura offset
-            unsigned char mask_dx_notag = 0x1C; // 00011100
-            unsigned char mask_sx_notag = 0xE0; // 11100000
             len = ((curr_byte & mask_dx_notag) >> 2) + 4; // 00011100 -> 111 + 4 (lungheza copia)
             // bit piu' significativi nel byte di tag
             converter.byte_arr[1] = (curr_byte & mask_sx_notag) >> 5; // 11100000 -> 111
