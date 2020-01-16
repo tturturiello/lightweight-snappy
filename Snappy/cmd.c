@@ -19,9 +19,11 @@ static enum {compress, compress_tree, uncompress} mode;
 
 void usage() {
     fprintf(stderr,
-            "snappy [-c|-d] [infile] [outfile]\n"
+            "snappy [-c|-d|-t] [-r] [infile] [outfile]\n"
             "-c compressione\n"
-            "-d decompressione\n"//TODO
+            "-t compressione con hash table di BST\n"
+            "-d decompressione\n"
+            "-r mostra risultati sul terminale\n"
             "Comprimi o decomprimi un file con snappy\n");
     exit(EXIT_FAILURE);
 }

@@ -93,7 +93,7 @@ int main(){
             //printf("\n------------------------------------------------------\n");
             printf("Compressione di %s\n\n", fcompressed_name);
             //run_test(finput_name, fcompressed_name, compress);
-            for (int k = 0; k < 500; ++k) {
+            for (int k = 0; k < 1000; ++k) {
 
 
                 //-----------------------Decompressione----------------------
