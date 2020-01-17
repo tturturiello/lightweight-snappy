@@ -7,6 +7,7 @@
 #include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
+#include "buffer_compression.h"
 #define MAX_BLOCK_SIZE 65536
 #define MAX_HTABLE_SIZE 4096
 
@@ -26,43 +27,6 @@ static inline int log2_32(unsigned int pow_of_2) {
     return pow;
 }
 
-typedef struct buffer {
-    char *current;
-    char *beginning;
-    unsigned int bytes_left;
-} Buffer;
-
-/**
- * Inizializza il buffer allocando dinamicamente un array di byte di
- * dimensione buffer_size.
- * @param bf il buffer da inizializzare
- * @param buffer_size la dimensione del buffer
- */
-static void init_Buffer(Buffer *bf, unsigned int buffer_size){
-    bf->current = (char *)calloc(buffer_size, sizeof(char));
-    bf->beginning = bf->current;
-    bf->bytes_left = buffer_size;
-}
-
-/**
- * Sposta la posizione del puntatore current dell'offset specificato
- * nel buffer bf
- * @param bf il buffer da modificare
- * @param offset
- */
-static inline void move_current(Buffer *bf, unsigned int offset){
-    bf->current += offset;
-    bf->bytes_left -= offset;
-}
-
-/**
- * Assegna la posizione di current a quella di beginning resettando cos?
- * il buffer
- * @param bf il buffer da resettare
- */
-static void reset_buffer(Buffer *bf) {
-    bf->current = bf->beginning;
-}
 
 typedef struct compressor{
     Tree **hash_table;
@@ -93,9 +57,7 @@ static Buffer input;
 static Buffer output;
 static Compressor cmp;
 static unsigned int literal_length;//TODO in compressor
-//Data for testing
-unsigned long long number_of_u32 = 0;
-unsigned long long collisions = 0;
+
 
 
 
@@ -312,7 +274,7 @@ static inline void write_block_compressed() {
 }
 
 
-static inline void reset_hash_table_tree() {
+static inline void reset_hash_table_bst() {
     for (int i = 0; i < cmp.htable_size; i++) {
         free_tree(cmp.hash_table[i]);
         cmp.hash_table[i] = create_tree();
@@ -321,11 +283,11 @@ static inline void reset_hash_table_tree() {
 
 
 static inline void reset_buffers() {
-    reset_buffer(&input);
-    reset_buffer(&output);
+    reset(&input);
+    reset(&output);
 }
 
-static void free_hash_table_tree() {
+static void free_hash_table_bst() {
     for (int i = 0; i < cmp.htable_size; i++) {
         free_tree(cmp.hash_table[i]);
     }
@@ -366,16 +328,8 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
-static void print_htable_tree() {
-    for (int i = 0; i < cmp.htable_size; ++i) {
-        print_tree_inorder(cmp.hash_table[i]);
-    }
-    printf("\n\n\n-----------------------------------\n\n\n");
-}
 
-
-
-int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
+int snappy_compress_bst(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
 
     init_environment(file_input, input_size, file_compressed);
@@ -385,11 +339,11 @@ int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *
     while(input_is_full()){
         compress_next_block();
         write_block_compressed();
-        reset_hash_table_tree();
+        reset_hash_table_bst();
         reset_buffers();
         load_next_block();
     }
-    free_hash_table_tree();
+    free_hash_table_bst();
     free_buffers();
 
 

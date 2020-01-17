@@ -7,7 +7,7 @@
 
 
 
-int snappy_compress_tree(FILE *file_input, unsigned long long input_size, FILE *file_compressed);
+int snappy_compress_bst(FILE *file_input, unsigned long long input_size, FILE *file_compressed);
 
 
 #endif //SNAPPY_SNAPPY_COMPRESSION_H

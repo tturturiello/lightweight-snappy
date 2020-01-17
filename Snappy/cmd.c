@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +10,7 @@
 #include "result.h"
 
 
-static enum {compress, compress_tree, uncompress} mode;
+static enum {compress, compress_bst, uncompress} mode;
  static FILE *input;
  static FILE *output;
 
@@ -19,9 +18,9 @@ static enum {compress, compress_tree, uncompress} mode;
 
 void usage() {
     fprintf(stderr,
-            "snappy [-c|-d|-t] [-r] [infile] [outfile]\n"
+            "snappy [-c|-d|-b] [-r] [infile] [outfile]\n"
             "-c compressione\n"
-            "-t compressione con hash table di BST\n"
+            "-b compressione con hash table di BST\n"
             "-d decompressione\n"
             "-r mostra risultati sul terminale\n"
             "Comprimi o decomprimi un file con snappy\n");
@@ -62,14 +61,14 @@ int main(int argc, char* argv[]){
     if(argc < 4){
         usage();
     }
-    while ((opt = getopt(argc, argv, "ctdr")) != -1) {
+    while ((opt = getopt(argc, argv, "cbdr")) != -1) {
         switch (opt) {
             case 'c':
                 mode = compress;
                 printf("compressione\n");
                 break;
-            case 't':
-                mode = compress_tree;
+            case 'b':
+                mode = compress_bst;
                 printf("compressione bst\n");
                 break;
             case 'd':
@@ -95,8 +94,8 @@ int main(int argc, char* argv[]){
     start_time();
     if(mode == compress){
         snappy_compress(input, input_size, output);
-    } else if(mode == compress_tree) {
-        snappy_compress_tree(input, input_size, output);
+    } else if(mode == compress_bst) {
+        snappy_compress_bst(input, input_size, output);
     } else if(mode == uncompress) {
         snappy_decompress(input, output);
     }
