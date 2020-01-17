@@ -15,7 +15,6 @@
 #define BUFFER_DIM 131072
 #define CONVERTER_DIM 4
 
-//// converte una sequenza di byte contenuti in un array, in un numero
 typedef union convertion {
     char byte_arr[CONVERTER_DIM];
     unsigned long value;
