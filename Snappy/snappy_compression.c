@@ -329,11 +329,18 @@ static inline void update_hash_table() {
     cmp.hash_table[hash_bytes(cmp.current_u32)] = input.current - input.beginning;
 }
 
+/**
+ * Se la lunghezza del literal accumulato al momento della chiamata di questa funzione ? maggiore di zero,
+ * viene chiamata write_literal per emettere i dati non compressi fino alla posizione corrente sul buffer in output
+ */
 static inline void emit_literal() {
     if(cmp.literal_length > 0)
         write_literal(input.current - cmp.literal_length, cmp.literal_length);
 }
 
+/**
+ *
+ */
 static inline void emit_copy() {
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index];
     int copy_length = 4 + find_copy_length(input.current + 4, candidate + 4);

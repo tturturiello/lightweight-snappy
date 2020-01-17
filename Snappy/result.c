@@ -1,6 +1,7 @@
 #include <winnt.h>
 #include <afxres.h>
 #include <stdio.h>
+#include <assert.h>
 #include "result.h"
 #include "IO_utils.h"
 
@@ -83,42 +84,23 @@ void compare_files(char *f1_name, char *f2_name) {
 
     FILE * f1 = open_read(f1_name);
     FILE * f2 = open_read(f2_name);
-    // fetching character of two file
-    // in two variable ch1 and ch2
+
     char ch1 = getc(f1);
     char ch2 = getc(f2);
 
-    // error keeps track of number of errors
-    // pos keeps track of position of errors
-    // line keeps track of error line
-    int error = 0, pos = 0, line = 1;
+    int error = 0;
 
-    // iterate loop till end of file
     while (ch1 != EOF && ch2 != EOF) {
-        pos++;
-
-        // if both variable encounters new
-        // line then line variable is incremented
-        // and pos variable is set to 0
-        if (ch1 == '\n' && ch2 == '\n') {
-            line++;
-            pos = 0;
-        }
-
-        // if fetched data is not equal then
-        // error is incremented
         if (ch1 != ch2) {
             error++;
-            //printf("Line Number : %d \tError"
-            //      " Position : %d \n", line, pos);
         }
-
-        // fetching character until end of file
         ch1 = getc(f1);
         ch2 = getc(f2);
     }
     fclose(f1);
     fclose(f2);
-    printf("Total Errors : %d\t", error);
-    puts("");
+    printf("Total Errors : %d\n", error);
+
+    assert(error == 0);
+
 }
