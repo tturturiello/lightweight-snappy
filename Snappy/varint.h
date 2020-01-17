@@ -1,7 +1,7 @@
 #ifndef SNAPPY_VARINT_H
 #define SNAPPY_VARINT_H
 
-unsigned int parse_to_varint(unsigned int n, unsigned char *varint);
+unsigned int parse_to_varint(unsigned long long n, unsigned char *varint);
 
 /*
  * ritorna il numero di byte presenti nel file prima della compressione,

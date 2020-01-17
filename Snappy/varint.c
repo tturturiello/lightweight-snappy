@@ -2,8 +2,14 @@
 #include "varint.h"
 const char MSB_mask = 0x80;
 
-
-unsigned int parse_to_varint(unsigned int n, unsigned char *varint) {
+/**
+ * Scrive il numero specificato in formato varint. La sequenza di byte generata viene scritta
+ * a partire dal puntatore a carattere specificato.
+ * @param n il numero da scrivere in formato varint
+ * @param varint
+ * @return il numero di byte utilizzati per la codifica in varint
+ */
+unsigned int parse_to_varint(unsigned long long n, unsigned char *varint) {
     unsigned char *start = varint;
     while(n & MSB_mask){
         *(varint++) = (n & 0xFF) | MSB_mask;

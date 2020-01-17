@@ -1,9 +1,6 @@
 #include <stdio.h>
-#include <assert.h>
-#include <stdlib.h>
 #include "IO_utils.h"
 #include "snappy_compression.h"
-#include "snappy_compression_tree.h"
 #include "snappy_decompression.h"
 #include "result.h"
 
@@ -19,23 +16,13 @@ char *file_test_name[30] = { "32k_ff",
 
 typedef enum {compress, uncompress} Mode;
 
-void create_test_files(FILE *source) {
-    char test_name[60];
-    char buffer[2000000];
-
-    for (int i = 0; i < 13; ++i) {
-        fseek(source, 1500, SEEK_SET);//Torno all'inizio del file
-        sprintf(test_name, "..\\Risultati_test\\%ub5", dim[i]);
-        FILE *test = fopen(test_name, "wb");
-        assert(test != NULL);
-
-        printf("Letti %u bytes\n", fread(buffer,1, dim[i], source));
-        printf("Scrivo %u bytes\n", fwrite(buffer, 1, dim[i], test));
-        fclose(test);
-    }
-}
-
-
+/**
+ * Chiama compressione o decompressione in mase al parametro mode, utilizzando i nomi dei file specificati,
+ * e stampa i risultati a terminale
+ * @param finput_name
+ * @param foutput_name
+ * @param mode
+ */
 void run_test_mode(char *finput_name, char*foutput_name, Mode mode){
     FILE *finput;
     FILE *foutput;
@@ -61,16 +48,21 @@ void run_test_mode(char *finput_name, char*foutput_name, Mode mode){
     unsigned long long foutput_size = get_size(foutput);
     if(mode == compress) {
         print_result_compression(foutput_size, finput_size);
-        //write_result_compression(finput_size, foutput_size);
     } else {
         print_result_decompression(foutput_size, finput_size);
-        //write_result_decompressione(finput_size, foutput_size);
     }
 
     fclose(foutput);
 
 }
 
+/**
+ * Chiama in successione la compressione, la decompressione e un test di integrità utilizzando
+ * i nomi dei file specificati
+ * @param finput_name
+ * @param fcompressed_name
+ * @param fdecompressed_name
+ */
 void run_test(char *finput_name, char *fcompressed_name, char *fdecompressed_name) {
     printf("\n------------------------------------------------------\n");
     printf("Compressione di %s\n\n", finput_name);

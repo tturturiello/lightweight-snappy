@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/stat.h>
-#include <time.h>
-#include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
 #include "buffer_compression.h"
@@ -12,21 +9,8 @@
 #define MAX_HTABLE_SIZE 4096
 
 /**
- *  Calcola la parte intera del logaritmo in base due dell'intero passato in parametro.
- *  Nel programma viene usata unicamente con potenze di due.
- * @param pow_of_2 la potenza di due
- * @return log2 del valore passato in parametro
+ * Le funzioni senza documentazione sono copie dal file snappy_compression.c
  */
-static inline int log2_32(unsigned int pow_of_2) {
-    assert(pow_of_2 > 0);
-    int pow = -1;
-    while(pow_of_2 > 0){
-        pow_of_2>>=1;
-        pow++;
-    }
-    return pow;
-}
-
 
 typedef struct compressor_bst{
     Tree **hash_table;
@@ -39,8 +23,12 @@ typedef struct compressor_bst{
     Node *copy;
 } Compressor_bst;
 
-
-void init_compressor_tree(Compressor_bst *cmp){
+/**
+ * Inizializza un Compressore con hash table di BST
+ * Viene allocato un albero binario per ognni posizione dell'array
+ * @param cmp
+ */
+void init_compressor_bst(Compressor_bst *cmp){
     cmp->hash_table = (Tree **)malloc(sizeof(Tree*)*MAX_HTABLE_SIZE);
     for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
         cmp->hash_table[i] = create_tree();
@@ -48,19 +36,23 @@ void init_compressor_tree(Compressor_bst *cmp){
 }
 
 
-
-
 static FILE *finput;
 static FILE *fcompressed;
-static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
 static Compressor_bst cmp;
 
+static inline int log2_32(unsigned int pow_of_2) {
+    assert(pow_of_2 > 0);
+    int pow = -1;
+    while(pow_of_2 > 0){
+        pow_of_2>>=1;
+        pow++;
+    }
+    return pow;
+}
 
-
-
-static inline unsigned int find_copy_length(char * current, char *candidate) {//TODO: max copy length? Incremental copy?
+static inline unsigned int find_copy_length(char * current, char *candidate) {
     const char *limit =  input.current + input.bytes_left;
     unsigned int length = 0;
     for(; current < limit; current++, candidate++){
@@ -77,7 +69,6 @@ static inline u32 hash_bytes(u32 bytes){
     u32 kmul = 0x1e35a7bd;
     return (bytes * kmul) >> cmp.shift;
 }
-
 
 static inline void write_literal(const char *start_of_literal, unsigned int len) {
 
@@ -105,6 +96,7 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
 }
 
 static inline void write_single_copy(unsigned int len, unsigned int offset){
+    assert(len <= 64);
     char *current_out = output.current;
     if( (len < 12) && offset < 2048){//Copy 01: 3 bits for len-4 and 11 bits for offset
         *current_out++ = ((offset >> 8 ) << 5) + ((len - 4) << 2) + 1;
@@ -121,7 +113,7 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
 static inline void write_copy(unsigned int len, unsigned long offset) {
 
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
-        write_single_copy(64, offset); //64 ? la max len per una copia
+        write_single_copy(64, offset); //64 è la max len per una copia
         len-=64;
     }
     if(len > 64) { //64 < len < 68
@@ -132,90 +124,53 @@ static inline void write_copy(unsigned int len, unsigned long offset) {
     write_single_copy(len, offset);
 }
 
-/**
- * Scrive sul buffer di output la dimensione del file di input in formato varint.
- * Quest'informazione sar? poi utilizzata in decompressione
- */
-static void write_dim_varint() {
-    unsigned int size_varint = parse_to_varint(finput_size, output.current);
+static void write_dim_varint(unsigned long long input_size) {
+    unsigned int size_varint = parse_to_varint(input_size, output.current);
     move_current(&output, size_varint);
 }
 
-/**
- * Inizializza i buffer necessari alla compressione.
- * Il buffer di input ha una grandezza fissa di 65536 byte.
- * Il buffer di output deve tenere conto del fatto che il risultato della compressione
- * pu? essere pi? grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
- * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes. 65536 / 65 ~ 1010.
- * Infine va tenuto conto dello spazio occupato dal varint nell'output buffer del primo blocco: la dimensione
- * massima del file in compressione ? 4 Gb, che occupa 5 bytes in formato varint.
- *
- */
 static void init_buffers() {
     init_Buffer(&input, MAX_BLOCK_SIZE); //TODO min?
     init_Buffer(&output, MAX_BLOCK_SIZE + 1010 + 5);
 }
 
-/**
- * Questa funzione viene chiamata prima che la compressione del blocco abbia inizio.
- * La dimensione dell'htable viene settata proporzionalmente alla dimensione del blocco
- * da comprimere.
- */
 static inline void set_htable_size() {
     cmp.htable_size = 256; //Minimo
     while(cmp.htable_size < MAX_HTABLE_SIZE & cmp.htable_size < input.bytes_left){
         cmp.htable_size <<= 1; //? sempre una potenza di due
     }
     cmp.shift = 32 - log2_32(cmp.htable_size); //Shift usato dalla funzione di hash
-
 }
 
-/**
- * Legge il prossimo blocco dal file in input e chiama set_htable_size() per aggiornare
- * la dimensione dell'hash table. Il blocco letto avr? dimensione <= 65536.
- */
 static inline void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
     set_htable_size();
 }
 
-/**
- * Controlla se l'input buffer in compressione ? pieno o vuoto.
- * @return 1 se l'input buffer ? pieno, 0 altrimenti
- */
 static inline int input_is_full() {
     return input.bytes_left != 0;
 }
 
-/**
- * Controlla se la compressione ? vicina ad esaurire l'input buffer.
- * Nel dettaglio l'input viene considerato esaurito quando i byte rimanenti sono
- * meno di quelli che andrebbero consumati alla prossima iterazione
- * @return 1 se l'input ? quasi esaurito
- */
 static inline int is_block_end() {
 
-    return input.bytes_left < (cmp.skip_bytes++ >> 5) + 15;//TODO, margine migliore?
+    return input.bytes_left < (cmp.skip_bytes++ >> 5) + 15;
 }
 
-/**
- * Converte i 4 bytes contigui a input in u32 (unsigned int)
- * @param input la posizione da cui caricare i 4 bytes
- * @return u32
- */
 static inline u32 get_next_u32(const unsigned char *input) {
     return (input[0] << 24u) | (input[1] << 16u) | (input[2] << 8u) | input[3];
 }
 
-/**
- * Genera il codice hash dei 4 bytes correnti, che verr? poi utilizzato come indice
- * per accedere all'hash table. Le informazioni sono salvate nei rispettivi campi del Compressor
- */
 static inline void generate_hash_index() {
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index =  hash_bytes(cmp.current_u32);
 }
 
+/**
+ * Controlla se esiste una copia di 4 byte della sequenza corrente effettuando una ricerca binaria
+ * nell'albero presente alla posizione associata nell'hash table. Per evitare di dover effettuare nuovamente la ricerca,
+ * il risultato viene salvato nel campo copy di cmp (Compressor_bst)
+ * @return 1 se un match è stato trovato
+ */
 static inline int found_match_tree() {
 
     if ( !is_empty(cmp.hash_table[cmp.current_index]) ) {
@@ -223,7 +178,6 @@ static inline int found_match_tree() {
     }
     return 0;
 }
-
 
 static inline void start_new_literal() {
     cmp.literal_length = 0;
@@ -244,6 +198,9 @@ static inline void exhaust_input() {
 
 }
 
+/**
+ * Aggiorna l'hash table inserendo nell'albero binario la sequenza corrente e la sequenza -1
+ */
 static inline void update_hash_table_tree() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
     insert(previous_u32, input.current - input.beginning - 1, cmp.hash_table[hash_bytes(previous_u32)]);
@@ -262,8 +219,6 @@ static inline void emit_copy_tree() {
     int copy_length = 4 + find_copy_length(input.current + 4,candidate + 4);
     write_copy(copy_length, input.current - candidate);
     cmp.copy->offset = input.current - input.beginning; //Aggiorno l'offset della copia
-    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, input.current - candidate, copy_length);
-
     move_current(&input, copy_length);
 }
 
@@ -272,7 +227,10 @@ static inline void write_block_compressed() {
     fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
 }
 
-
+/**
+ * Resetta l'hash table. Per ogni posizione viene liberata la memoria occupata dall'albero
+ * costruito in precedenza e ne viene creato uno nuovo
+ */
 static inline void reset_hash_table_bst() {
     for (int i = 0; i < cmp.htable_size; i++) {
         free_tree(cmp.hash_table[i]);
@@ -280,12 +238,15 @@ static inline void reset_hash_table_bst() {
     }
 }
 
-
 static inline void reset_buffers() {
     reset(&input);
     reset(&output);
 }
 
+/**
+ * Libera la memoria occupata dall'hash table. Dapprima libera ogni albero binario e successivamente
+ * l'array di puntatori ad alberi binari vero e proprio.
+ */
 static void free_hash_table_bst() {
     for (int i = 0; i < cmp.htable_size; i++) {
         free_tree(cmp.hash_table[i]);
@@ -298,17 +259,16 @@ static void free_buffers() {
     free(output.beginning);
 }
 
-static void init_environment(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
+static void init_environment(FILE *file_input, FILE *file_compressed) {
     finput = file_input;
     fcompressed = file_compressed;
-    finput_size = input_size;
-    init_compressor_tree(&cmp);
+    init_compressor_bst(&cmp);
     init_buffers();
 }
 
 static inline void compress_next_block() {
 
-    start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
+    start_new_literal(); //All'inizio di ogni blocco c'è sempre un literal
     append_literal();
 
     while(!is_block_end()){
@@ -330,9 +290,8 @@ static inline void compress_next_block() {
 
 int snappy_compress_bst(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
-
-    init_environment(file_input, input_size, file_compressed);
-    write_dim_varint();
+    init_environment(file_input, file_compressed);
+    write_dim_varint(input_size);
     load_next_block();
 
     while(input_is_full()){
@@ -344,8 +303,6 @@ int snappy_compress_bst(FILE *file_input, unsigned long long input_size, FILE *f
     }
     free_hash_table_bst();
     free_buffers();
-
-
 }
 
 

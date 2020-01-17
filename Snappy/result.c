@@ -1,24 +1,19 @@
-#include <winnt.h>
-#include <afxres.h>
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
 #include "result.h"
 #include "IO_utils.h"
 
 static double time_taken = 0;
-LARGE_INTEGER frequency;
-LARGE_INTEGER start;
-LARGE_INTEGER end;
-
+static clock_t t;
 
 void start_time() {
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&start);
+    t = clock();
 }
 
 void stop_time() {
-    QueryPerformanceCounter(&end);
-    time_taken = (double) (end.QuadPart - start.QuadPart) / frequency.QuadPart;
+    t = clock() - t;
+    time_taken = (double) t / CLOCKS_PER_SEC;
 }
 
 void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
@@ -61,10 +56,6 @@ void print_result_compression(unsigned long long fcompressed_size, unsigned long
     printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
     printf("Saving %f%%\n", (1 - comp_ratio)*100 );
 
-/*    printf("\nNumero di u32 processati = %llu\n", number_of_u32 );
-    printf("Numero di collisioni = %llu\n", collisions );
-    printf("In percentuale: %f%%\n", ((double)collisions / (double)number_of_u32)*100 );*///TODO togliere collision!
-
     printf("\nCompression took %f seconds to execute\n", time_taken);
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 }
@@ -79,7 +70,6 @@ void print_result_decompression(unsigned long long fdecompressed_size, unsigned 
     printf("%f MB/s\n", finput_size/(time_taken * 1e6));
 }
 
-//TODO funzione presa da Geek..
 void compare_files(char *f1_name, char *f2_name) {
 
     FILE * f1 = open_read(f1_name);
@@ -102,5 +92,4 @@ void compare_files(char *f1_name, char *f2_name) {
     printf("Total Errors : %d\n", error);
 
     assert(error == 0);
-
 }

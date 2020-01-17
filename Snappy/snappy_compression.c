@@ -1,10 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/stat.h>
-#include <time.h>
 #include <stdio.h>
-#include "IO_utils.h"
 #include "varint.h"
 #include "BST.h"
 #include "buffer_compression.h"
@@ -24,7 +21,7 @@ typedef struct compressor{
 
 /**
  * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
- * N.B: anche se la memoria allocata ? una costante, la dimensione dell'hash table utilizzata
+ * N.B: anche se la memoria allocata è una costante, la dimensione dell'hash table utilizzata
  * in compressione varia proporzionalmente alla dimensione del blocco in compressione
  * @param cmp il Compressor da inizializzare
  */
@@ -75,8 +72,8 @@ static inline unsigned int find_copy_length(char * current, char *candidate) {
 }
 
 /**
- * Funzione di hash utilizzata da Snappy. Minimizza le collisioni e massimizza la velocit?,
- * affidandosi a due sole operazioni: una moltiplicazione e uno shift. Il valore di shift ?
+ * Funzione di hash utilizzata da Snappy. Minimizza le collisioni e massimizza la velocità,
+ * affidandosi a due sole operazioni: una moltiplicazione e uno shift. Il valore di shift è
  * proporzionale alla dimensione dell'hash table (32 - log2(htable_size)).
  * @param bytes i 4 byte di cui viene generato l'hash code
  * @return hash code dei 4 byte passati in parametro
@@ -88,10 +85,10 @@ static inline u32 hash_bytes(u32 bytes){
 
 /**
  * Scrive in output il literal di lunghezza e inizio passati in parametro.
- * Il formato ? quello specificato dal format description di Snappy. Se la lunghezza
- * del literal ? inferiore a 60, len-1 viene scritto nei 6 higher bits del tag byte.
+ * Il formato è quello specificato dal format description di Snappy. Se la lunghezza
+ * del literal è inferiore a 60, len-1 viene scritto nei 6 higher bits del tag byte.
  * Se len > 60, len-1 viene scritto nei byte successivi al tag byte (da 1 a 4) e i 6 higher
- * bits del tag byte ne indicano la quantit?: 60 -> 1 byte, 61 -> 2, 62 -> 3, 63 -> 4
+ * bits del tag byte ne indicano la quantità: 60 -> 1 byte, 61 -> 2, 62 -> 3, 63 -> 4
  * @param start_of_literal l'inizio del literal
  * @param len la lunghezza del literal
  */
@@ -114,14 +111,8 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
         assert(code_literal >= 60);
         assert(code_literal < 64);
         *tag_byte = code_literal << 2;//Inserisco il codice nel tag byte
-        //printf("%X %X %X\n", (unsigned char)tag_byte[0], (unsigned char)tag_byte[1], (unsigned char)tag_byte[2]);
     }
-    //printf("Literal of len = %u\n", len);
 
-/*   for (int i = 0; i < len; ++i) {
-        printf("%X ", (unsigned char)start_of_literal[i]);
-    }*/
-    //puts("");//TODO*/
     memcpy(current_out, start_of_literal, len); //Copio il literal
     current_out += len;
     move_current(&output, current_out - output.current);
@@ -130,8 +121,8 @@ static inline void write_literal(const char *start_of_literal, unsigned int len)
 
 /**
  * Scrive una copia con len <= 64 (il massimo valore esprimibile in 6 bits) e offset specificato.
- * Il formato ? quello specificato dal format description di Snappy. Vengono utilizzate solo copie 01 e 10,
- * dato che i blocchi in compressione non supera i 64kB e quindi un'offset non pu? eccedere questo valore.
+ * Il formato è quello specificato dal format description di Snappy. Vengono utilizzate solo copie 01 e 10,
+ * dato che i blocchi in compressione non supera i 64kB e quindi un'offset non può eccedere questo valore.
  * Copy 01: 3 bits per len-4 (nel tag byte) e 11 bits per l'offset (3 ne l tag byte e 8 nel byte successivo)
  * Copy 10: 6 bits per len-1 (nel tag byte) e 2 byte successivi per l'ffset
  * @param len la lunghezza della copia (<=64)
@@ -147,15 +138,14 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
         *current_out++ = ((len - 1) << 2) | 2;
         *current_out++ = offset & 0xFF;
         *current_out++ = (offset >> 8) & 0xFF;
-        //Copy 11 non ? necessaria: il blocco da comprimere ? <= 64kB
+        //Copy 11 non è necessaria: il blocco da comprimere è <= 64kB
     }
-    //printf("%X copy of offset = %d and length = %d\n",cmp.current_u32, offset, len);
     move_current(&output, current_out - output.current);
 
 }
 
 /**
- *  Scrive una copia di qualsiasi dimensione scomponendola in pi? copie di lunghezza <= 64.
+ *  Scrive una copia di qualsiasi dimensione scomponendola in più copie di lunghezza <= 64.
  *  Minimizza il numero di copie singole emesse.
  * @param len la lunghezza della copia
  * @param offset l'offset della copia
@@ -163,7 +153,7 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
 static inline void write_copy(unsigned int len, unsigned long offset) {
 
     while(len > 68){ //Garantisco che rimangano un minimo di 4 bytes per utilizzare alla fine la copia 01
-        write_single_copy(64, offset); //64 ? la max len per una copia
+        write_single_copy(64, offset); //64 è la max len per una copia
         len-=64;
     }
     if(len > 64) { //64 < len < 68
@@ -176,7 +166,7 @@ static inline void write_copy(unsigned int len, unsigned long offset) {
 
 /**
  * Scrive sul buffer di output la dimensione del file di input in formato varint.
- * Quest'informazione sar? poi utilizzata in decompressione
+ * Quest'informazione sarà poi utilizzata in decompressione
  */
 static void write_dim_varint(unsigned long long input_size) {
     unsigned int size_varint = parse_to_varint(input_size, output.current);
@@ -187,10 +177,10 @@ static void write_dim_varint(unsigned long long input_size) {
  * Inizializza i buffer necessari alla compressione.
  * Il buffer di input ha una grandezza fissa di 65536 byte.
  * Il buffer di output deve tenere conto del fatto che il risultato della compressione
- * pu? essere pi? grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
+ * può essere più grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
  * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes. 65536 / 65 ~ 1010.
  * Infine va tenuto conto dello spazio occupato dal varint nell'output buffer del primo blocco: la dimensione
- * massima del file in compressione ? 4 Gb, che occupa 5 bytes in formato varint.
+ * massima del file in compressione è 4 Gb, che occupa 5 bytes in formato varint.
  *
  */
 static void init_buffers() {
@@ -207,14 +197,14 @@ static void init_buffers() {
 static inline void set_htable_size() {
     cmp.htable_size = 256; //Minimo
     while(cmp.htable_size < MAX_HTABLE_SIZE & cmp.htable_size < input.bytes_left){
-        cmp.htable_size <<= 1; //? sempre una potenza di due
+        cmp.htable_size <<= 1; //è sempre una potenza di due
     }
     cmp.shift = 32 - log2_32(cmp.htable_size); //Shift usato dalla funzione di hash
 }
 
 /**
  * Legge il prossimo blocco dal file in input e chiama set_htable_size() per aggiornare
- * la dimensione dell'hash table. Il blocco letto avr? dimensione <= 65536.
+ * la dimensione dell'hash table. Il blocco letto avrà dimensione <= 65536.
  */
 static inline void load_next_block() {
     input.bytes_left = fread(input.current, sizeof(char), MAX_BLOCK_SIZE, finput);
@@ -222,18 +212,18 @@ static inline void load_next_block() {
 }
 
 /**
- * Controlla se l'input buffer in compressione ? pieno o vuoto.
- * @return 1 se l'input buffer ? pieno, 0 altrimenti
+ * Controlla se l'input buffer in compressione è pieno o vuoto.
+ * @return 1 se l'input buffer è pieno, 0 altrimenti
  */
 static inline int input_is_full() {
     return input.bytes_left != 0;
 }
 
 /**
- * Controlla se la compressione ? vicina ad esaurire l'input buffer.
+ * Controlla se la compressione è vicina ad esaurire l'input buffer.
  * Nel dettaglio l'input viene considerato esaurito quando i byte rimanenti sono
  * meno di quelli che andrebbero consumati alla prossima iterazione
- * @return 1 se l'input ? quasi esaurito
+ * @return 1 se l'input è quasi esaurito
  */
 static inline int is_block_end() {
 
@@ -250,7 +240,7 @@ static inline u32 get_next_u32(const unsigned char *input) {
 }
 
 /**
- * Genera il codice hash dei 4 bytes correnti, che verr? poi utilizzato come indice
+ * Genera il codice hash dei 4 bytes correnti, che verrà poi utilizzato come indice
  * per accedere all'hash table. Le informazioni sono salvate nei rispettivi campi del Compressor
  */
 static inline void generate_hash_index() {
@@ -263,7 +253,7 @@ static inline void generate_hash_index() {
 /**
  * Controlla se alla posizione indicata dall'offset ottenuto dall'hash table,
  * esista effettivamente una copia dei 4 byte correnti: Potrebbe infatti essere solo una collisione
- * @return 1 se una copia ? stata trovata
+ * @return 1 se una copia è stata trovata
  */
 static inline int found_match() {
 
@@ -283,10 +273,10 @@ static inline void start_new_literal() {
 }
 
 /**
- * Accumula i byte in input appena letti e per cui non ? stata trovata una copia nel prossimo literal da
- * emettere. Per aumentare la velocit? di compressione, se 32 u32 vengono esaminati senza trovare una copia,
+ * Accumula i byte in input appena letti e per cui non è stata trovata una copia nel prossimo literal da
+ * emettere. Per aumentare la velocità di compressione, se 32 u32 vengono esaminati senza trovare una copia,
  * il programma comincia a cercare una copia ogni due byte, se ulteriori 32 u32 non hanno match, cerca ogni tre
- * e cos? via. Questo permette di avere un grande vantaggio con input che presentano parti molto grandi di dati non
+ * e così via. Questo permette di avere un grande vantaggio con input che presentano parti molto grandi di dati non
  * comprimibili, dato che il programma capisce in fretta che non ha senso cercare delle copie.
  */
 static inline void append_literal() {
@@ -307,7 +297,7 @@ static inline void exhaust_input() {
 
 /**
  * Aggiorna l'hash table con l'offset dell'u32 (4 byte) corrente. Per aumentare la compressione a scapito di poche
- * operazioni in pi?, viene inserito nell'hash table anche l'offset dell'u32 precedente
+ * operazioni in più, viene inserito nell'hash table anche l'offset dell'u32 precedente
  */
 static inline void update_hash_table() {
     u32 previous_u32 = get_next_u32(input.current-1); //Aggiungo anche u32 precedente per migliorare compressione
@@ -316,7 +306,7 @@ static inline void update_hash_table() {
 }
 
 /**
- * Se la lunghezza del literal accumulato al momento della chiamata di questa funzione ? maggiore di zero,
+ * Se la lunghezza del literal accumulato al momento della chiamata di questa funzione è maggiore di zero,
  * viene chiamata write_literal per emettere i dati non compressi fino alla posizione corrente sul buffer in output
  */
 static inline void emit_literal() {
@@ -345,7 +335,7 @@ static inline void write_block_compressed() {
 }
 
 /**
- * Azzera tutti gli elementi dell'hash table. Quest'opearazione particolarmente costosa ? una delle principali
+ * Azzera tutti gli elementi dell'hash table. Quest'opearazione particolarmente costosa è una delle principali
  * ragioni per cui la dimensione dell'hash table viene calcolata in maniera proporzionale alla dimensione del blocco in input.
  */
 static inline void reset_hash_table() {
@@ -392,7 +382,7 @@ static void init_environment(FILE *file_input, FILE *file_compressed) {
  */
 static inline void compress_next_block() {
 
-    start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
+    start_new_literal(); //All'inizio di ogni blocco c'è sempre un literal
     append_literal();
 
     while(!is_block_end()){
@@ -413,7 +403,7 @@ static inline void compress_next_block() {
 
 /**
  * Comprime il file di input specificato. Entrambi i file di input e di output (file compresso)
- * devono essere passati in paramentro gi? aperti in lettura
+ * devono essere passati in paramentro già aperti in lettura
  * e scrittura come file binari (rb per l'input e wb per l'output). Va inoltre fornita la dimensione
  * del file da comprimere.
  * @param file_input il file da comprimere
