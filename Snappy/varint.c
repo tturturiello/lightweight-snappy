@@ -19,11 +19,15 @@ unsigned int parse_to_varint(unsigned long long n, unsigned char *varint) {
     return varint - start + 1;
 }
 
-
+/**
+ * Legge il numero specificato in formato varint. La sequenza di byte generata viene letta
+ * a partire dal puntatore del file passato come parametro.
+ * @param source
+ * @return
+ */
 int varint_to_dim(FILE *source)
 {
-    unsigned char mask_condition = 0x80;
-    unsigned char mask_value = 0x7f; // ~mask_condition
+    unsigned char mask_value = 0x7f;
     unsigned char byte_buf;
     int multiplier = 1;
     int result = 0;
@@ -32,39 +36,6 @@ int varint_to_dim(FILE *source)
         fread(&byte_buf, sizeof(char),1, source); // aggiorna il buffer e sposta il puntatore del al prossimo byte
         result += (((int)(byte_buf&mask_value)) * multiplier);
         multiplier *= 128; // equivale a shiftare di 7 bit
-    } while ((byte_buf & mask_condition)!=0);
-    return result;
-}
-
-int str_varint_to_dim_(unsigned char *varint)
-{
-    unsigned char mask_condition = 0x80;
-    unsigned char mask_value = 0x7f; // ~mask_condition
-    unsigned char byte_buf;
-    int multiplier = 1;
-    int result = 0;
-
-    do {
-        byte_buf = *(varint++);
-        result += (((int)(byte_buf&mask_value)) * multiplier);
-        multiplier *= 128; // equivale a shiftare di 7 bit
-    } while ((byte_buf & mask_condition)!=0);
-    return result;
-}
-
-int str_varint_to_dim_mark(unsigned char *varint, unsigned long *mark)
-{
-    unsigned char mask_condition = 0x80;
-    unsigned char mask_value = 0x7f; // ~mask_condition
-    unsigned char byte_buf;
-    int multiplier = 1;
-    int result = 0;
-
-    do {
-        byte_buf = *(varint++);
-        result += (((int)(byte_buf&mask_value)) * multiplier);
-        multiplier *= 128; // equivale a shiftare di 7 bit
-        (*mark)++;
-    } while ((byte_buf & mask_condition)!=0);
+    } while ((byte_buf & MSB_mask)!=0);
     return result;
 }
