@@ -1,4 +1,4 @@
-all: snappy snappy_test test_BST test_max_buff test_varint
+all: snappy snappy_test test_BST test_max_buff test_varint foglio_per_test
 
 snappy: snappy_decompression.c varint.c IO_utils.c cmd.c snappy_compression.c BST.c snappy_compression_tree.c
 	gcc -o snappy snappy_decompression.c varint.c IO_utils.c cmd.c snappy_compression.c BST.c snappy_compression_tree.c -I
