@@ -1,10 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <time.h>
-#include <stdint.h>
-#include <winnt.h>
-#include <afxres.h>
 #include "IO_utils.h"
 #include "snappy_compression.h"
 #include "snappy_compression_tree.h"
@@ -12,6 +8,14 @@
 #include "result.h"
 
 unsigned int dim[] ={500, 1000, 2000, 5000, 10000, 20000, 50000, 80000, 100000, 200000, 500000, 800000, 1000000};
+char *file_test_name[30] = { "32k_ff",
+                               "32k_random",
+                               "alice.txt",
+                               "empty",
+                               "ff_ff_ff",
+                               "immagine.tiff"};
+
+
 
 typedef enum {compress, uncompress} Mode;
 
@@ -21,7 +25,7 @@ void create_test_files(FILE *source) {
 
     for (int i = 0; i < 13; ++i) {
         fseek(source, 1500, SEEK_SET);//Torno all'inizio del file
-        sprintf(test_name, "..\\Standard_test\\%ub5", dim[i]);
+        sprintf(test_name, "..\\Risultati_test\\%ub5", dim[i]);
         FILE *test = fopen(test_name, "wb");
         assert(test != NULL);
 
@@ -32,7 +36,7 @@ void create_test_files(FILE *source) {
 }
 
 
-void run_test(char *finput_name, char*foutput_name, Mode mode){
+void run_test_mode(char *finput_name, char*foutput_name, Mode mode){
     FILE *finput;
     FILE *foutput;
 
@@ -56,58 +60,56 @@ void run_test(char *finput_name, char*foutput_name, Mode mode){
 
     unsigned long long foutput_size = get_size(foutput);
     if(mode == compress) {
-        //print_result_compression_tree(foutput_size);
+        print_result_compression(foutput_size, finput_size);
         //write_result_compression(finput_size, foutput_size);
     } else {
-        //print_result_decompression(foutput_size, finput_size);
-        write_result_decompressione(finput_size, foutput_size);
-        write_result_speed(finput_size, foutput_size);
+        print_result_decompression(foutput_size, finput_size);
+        //write_result_decompressione(finput_size, foutput_size);
     }
 
     fclose(foutput);
 
 }
 
-
+void run_test(char *finput_name, char *fcompressed_name, char *fdecompressed_name) {
+    printf("\n------------------------------------------------------\n");
+    printf("Compressione di %s\n\n", finput_name);
+    run_test_mode(finput_name, fcompressed_name, compress);
+    printf("\n------------------------------------------------------\n");
+    printf("Decompressione di %s\n\n", fcompressed_name);
+    run_test_mode(fcompressed_name, fdecompressed_name, uncompress);
+    printf("------------------------------------------------------\n\n");
+    printf("CHECK INTEGRITY\n\n");
+    compare_files(finput_name, fdecompressed_name);
+}
 
 int main(){
-
-/*    FILE *source = fopen("C:\\Users\\belli\\Documents\\Archivio SUPSI\\SnappyProject\\sources_test\\word.docx", "rb");
-    assert(source!=NULL);
-    create_test_files(source);
-    fclose(source);*/
 
     char finput_name[300];
     char fcompressed_name[300];
     char fdecompressed_name[300];
 
+    for (int i = 0; i < 6; ++i) {
+        sprintf(finput_name, "..\\Files_test\\%s", file_test_name[i]);
+        sprintf(fcompressed_name, "..\\Compressed_test\\%s_snp", file_test_name[i]);
+        sprintf(fdecompressed_name, "..\\Decompressed_test\\%s_dec", file_test_name[i]);
+
+        run_test(finput_name, fcompressed_name, fdecompressed_name);
+    }
+
+
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
 
-            sprintf(finput_name, "..\\Standard_test\\%ub%d", dim[i], j);
+            sprintf(finput_name, "..\\Files_test\\%ub%d", dim[i], j);
             sprintf(fcompressed_name,
-                    "..\\Standard_test\\%ub%d.snp", dim[i], j);
+                    "..\\Compressed_test\\%ub%d.snp", dim[i], j);
             sprintf(fdecompressed_name,
-                    "..\\Standard_test\\%ub%ddec", dim[i], j);
-            //-----------------------Compressione----------------------
-            //printf("\n------------------------------------------------------\n");
-            printf("Compressione di %s\n\n", fcompressed_name);
-            //run_test(finput_name, fcompressed_name, compress);
-            for (int k = 0; k < 1000; ++k) {
+                    "..\\Decompressed_test\\%ub%ddec", dim[i], j);
 
-
-                //-----------------------Decompressione----------------------
-
-                //printf("\n------------------------------------------------------\n");
-                //printf("Decompressione di %s\n\n", fcompressed_name);
-                run_test(fcompressed_name, fdecompressed_name, uncompress);
-            }
-            printf("------------------------------------------------------\n\n");
-            printf("CHECK INTEGRITY\n\n");
-
-            compare_files(finput_name, fdecompressed_name);
-
-
+            run_test(finput_name, fcompressed_name, fdecompressed_name);
         }
     }
 }
+
+
