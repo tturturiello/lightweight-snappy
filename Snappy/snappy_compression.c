@@ -11,8 +11,32 @@
 
 #define MAX_BLOCK_SIZE 65536
 #define MAX_HTABLE_SIZE 4096
-#define A 0.6180339887498949
 
+typedef struct compressor{
+    unsigned short *hash_table;
+    unsigned htable_size;
+    u32 shift;
+    u32 skip_bytes;
+    u32 current_u32;
+    int current_index;
+    unsigned int literal_length;
+} Compressor;
+
+/**
+ * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
+ * N.B: anche se la memoria allocata ? una costante, la dimensione dell'hash table utilizzata
+ * in compressione varia proporzionalmente alla dimensione del blocco in compressione
+ * @param cmp il Compressor da inizializzare
+ */
+static void init_compressor(Compressor *cmp){
+    cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
+}
+
+static FILE *finput;
+static FILE *fcompressed;
+static Buffer input;
+static Buffer output;
+static Compressor cmp;
 
 /**
  *  Calcola la parte intera del logaritmo in base due dell'intero passato in parametro.
@@ -29,38 +53,6 @@ static inline int log2_32(unsigned int pow_of_2) {
     }
     return pow;
 }
-
-
-
-typedef struct compressor{
-    unsigned short *hash_table;
-    unsigned htable_size;
-    u32 shift;
-    u32 skip_bytes;
-    u32 current_u32;
-    int current_index;
-    unsigned int literal_length;
-} Compressor;
-
-
-/**
- * Inizializza il Compressor passato in parametro allocando un'hash table di dimensione 4096.
- * N.B: anche se la memoria allocata ? una costante, la dimensione dell'hash table utilizzata
- * in compressione varia proporzionalmente alla dimensione del blocco in compressione
- * @param cmp il Compressor da inizializzare
- */
-static void init_compressor(Compressor *cmp){
-    cmp->hash_table = (unsigned short *)calloc(MAX_HTABLE_SIZE, sizeof(unsigned short *));
-}
-
-
-
-static FILE *finput;
-static FILE *fcompressed;
-static Buffer input;
-static Buffer output;
-static Compressor cmp;
-
 
 /**
  * Calcola la lunghezza della copia trovata. Compara byte a byte le due sequenze in maniera lineare
@@ -92,12 +84,6 @@ static inline unsigned int find_copy_length(char * current, char *candidate) {
 static inline u32 hash_bytes(u32 bytes){
     u32 kmul = 0x1e35a7bd;
     return (bytes * kmul) >> cmp.shift;
-}
-
-static inline u32 alternative_hash_bytes(u32 val){
-    double fraction = A * val - ((unsigned long)(A * val));
-    unsigned int hash_code = (unsigned int)(cmp.htable_size * fraction);
-    return hash_code;
 }
 
 /**
@@ -339,7 +325,9 @@ static inline void emit_literal() {
 }
 
 /**
- *
+ * Verifica se la lunghezza della copia sia maggiore di 4 byte e successivamente chima write_copy() per
+ * scrivere le informazioni sul match nel buffer di output. Infine aggiorna l'offset nell'hash table con quello
+ * della sequenza corrente
  */
 static inline void emit_copy() {
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index];
@@ -349,28 +337,49 @@ static inline void emit_copy() {
     move_current(&input, copy_length);
 }
 
+/**
+ * Copia il buffer di output su file compresso
+ */
 static inline void write_block_compressed() {
     fwrite(output.beginning, sizeof(char), output.current - output.beginning, fcompressed);
 }
 
+/**
+ * Azzera tutti gli elementi dell'hash table. Quest'opearazione particolarmente costosa ? una delle principali
+ * ragioni per cui la dimensione dell'hash table viene calcolata in maniera proporzionale alla dimensione del blocco in input.
+ */
 static inline void reset_hash_table() {
     memset(cmp.hash_table, 0, MAX_HTABLE_SIZE * sizeof(unsigned short *));
 }
 
+/**
+ * Resetta i buffer di input e output
+ */
 static inline void reset_buffers() {
     reset(&input);
     reset(&output);
 }
 
+/**
+ * Libera la memoria allocata per l'hash table
+ */
 static void free_hash_table() {
     free(cmp.hash_table);
 }
 
+/**
+ * Libera la memoria allocata per i buffer
+ */
 static void free_buffers() {
     free(input.beginning);
     free(output.beginning);
 }
 
+/**
+ * Inizializza le variabili globali necessarie alla compressione
+ * @param file_input il file da comprimere
+ * @param file_compressed il file compresso
+ */
 static void init_environment(FILE *file_input, FILE *file_compressed) {
     finput = file_input;
     fcompressed = file_compressed;
@@ -378,13 +387,9 @@ static void init_environment(FILE *file_input, FILE *file_compressed) {
     init_buffers();
 }
 
-void print_htable() {
-    for (int i = 0; i < cmp.htable_size; ++i) {
-        printf("%hu\t", cmp.hash_table[i]);
-    }
-    printf("\n\n\n-----------------------------------\n\n\n");
-}
-
+/**
+ * Comprime un blocco di dimensione <= 64kb
+ */
 static inline void compress_next_block() {
 
     start_new_literal(); //All'inizio di ogni blocco c'? sempre un literal
@@ -406,7 +411,16 @@ static inline void compress_next_block() {
     emit_literal();
 }
 
-int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
+/**
+ * Comprime il file di input specificato. Entrambi i file di input e di output (file compresso)
+ * devono essere passati in paramentro gi? aperti in lettura
+ * e scrittura come file binari (rb per l'input e wb per l'output). Va inoltre fornita la dimensione
+ * del file da comprimere.
+ * @param file_input il file da comprimere
+ * @param input_size la dimensione del file da comprimere
+ * @param file_compressed  il file compresso
+ */
+void snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
     init_environment(file_input, file_compressed);
     write_dim_varint(input_size);
