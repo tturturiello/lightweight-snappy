@@ -28,7 +28,7 @@ static inline int log2_32(unsigned int pow_of_2) {
 }
 
 
-typedef struct compressor{
+typedef struct compressor_bst{
     Tree **hash_table;
     unsigned htable_size;
     u32 shift;
@@ -36,11 +36,11 @@ typedef struct compressor{
     u32 current_u32;
     int current_index;
     unsigned int literal_length;
-    Node *copy; //TODO Che schifo?
-} Compressor;
+    Node *copy;
+} Compressor_bst;
 
 
-void init_compressor_tree(Compressor *cmp){
+void init_compressor_tree(Compressor_bst *cmp){
     cmp->hash_table = (Tree **)malloc(sizeof(Tree*)*MAX_HTABLE_SIZE);
     for (int i = 0; i < MAX_HTABLE_SIZE; i++) {
         cmp->hash_table[i] = create_tree();
@@ -55,8 +55,7 @@ static FILE *fcompressed;
 static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
-static Compressor cmp;
-static unsigned int literal_length;//TODO in compressor
+static Compressor_bst cmp;
 
 
 
@@ -227,20 +226,20 @@ static inline int found_match_tree() {
 
 
 static inline void start_new_literal() {
-    literal_length = 0;
+    cmp.literal_length = 0;
     cmp.skip_bytes = 32;
 
 }
 
 static inline void append_literal() {
     u32 bytes_to_skip = cmp.skip_bytes++ >> 5;
-    literal_length += bytes_to_skip;
+    cmp.literal_length += bytes_to_skip;
     move_current(&input, bytes_to_skip);
 }
 
 static inline void exhaust_input() {
 
-    literal_length += input.bytes_left;
+    cmp.literal_length += input.bytes_left;
     move_current(&input, input.bytes_left);
 
 }
@@ -253,8 +252,8 @@ static inline void update_hash_table_tree() {
 
 
 static inline void emit_literal() {
-    if(literal_length > 0)
-        write_literal(input.current - literal_length, literal_length);
+    if(cmp.literal_length > 0)
+        write_literal(input.current - cmp.literal_length, cmp.literal_length);
 }
 
 static inline void emit_copy_tree() {
@@ -299,7 +298,7 @@ static void free_buffers() {
     free(output.beginning);
 }
 
-static void init_environment(FILE *file_input, unsigned long long int input_size, FILE *file_compressed) {
+static void init_environment(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
     finput = file_input;
     fcompressed = file_compressed;
     finput_size = input_size;

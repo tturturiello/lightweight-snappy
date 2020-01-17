@@ -57,14 +57,9 @@ static void init_compressor(Compressor *cmp){
 
 static FILE *finput;
 static FILE *fcompressed;
-static unsigned long long finput_size;
 static Buffer input;
 static Buffer output;
 static Compressor cmp;
-//Data for testing
-static unsigned long long number_of_u32 = 0;
-static unsigned long long collisions = 0;
-static double time_taken = 0;
 
 
 /**
@@ -174,7 +169,7 @@ static inline void write_single_copy(unsigned int len, unsigned int offset){
 }
 
 /**
- *  Scrive una copia di qualsiasi dimensione scomponendola in pi? copie di lunghezza >= 64.
+ *  Scrive una copia di qualsiasi dimensione scomponendola in pi? copie di lunghezza <= 64.
  *  Minimizza il numero di copie singole emesse.
  * @param len la lunghezza della copia
  * @param offset l'offset della copia
@@ -197,8 +192,8 @@ static inline void write_copy(unsigned int len, unsigned long offset) {
  * Scrive sul buffer di output la dimensione del file di input in formato varint.
  * Quest'informazione sar? poi utilizzata in decompressione
  */
-static void write_dim_varint() {
-    unsigned int size_varint = parse_to_varint(finput_size, output.current);
+static void write_dim_varint(unsigned long long input_size) {
+    unsigned int size_varint = parse_to_varint(input_size, output.current);
     move_current(&output, size_varint);
 }
 
@@ -277,7 +272,6 @@ static inline void generate_hash_index() {
     //printf("%X %X %X %X\n", (char)input.current[0],(char)input.current[1], (char)input.current[2], (char)input.current[3]);//TODO
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index = hash_bytes(cmp.current_u32);
-    number_of_u32++;//TODO togliere?
 }
 
 /**
@@ -290,13 +284,7 @@ static inline int found_match() {
     char *candidate = input.beginning + cmp.hash_table[cmp.current_index]; //Beginning + offset
     u32 candidate_u32 = get_next_u32(candidate);
 
-    if(candidate_u32 == cmp.current_u32){
-        return 1;
-    } else if( cmp.hash_table[cmp.current_index] != 0 ){
-        collisions++;
-    }
-    return 0;
-
+    return candidate_u32 == cmp.current_u32;
 }
 
 /**
@@ -376,10 +364,9 @@ static void free_buffers() {
     free(output.beginning);
 }
 
-static void init_environment(FILE *file_input, unsigned long long int input_size, FILE *file_compressed) {
+static void init_environment(FILE *file_input, FILE *file_compressed) {
     finput = file_input;
     fcompressed = file_compressed;
-    finput_size = input_size;
     init_compressor(&cmp);
     init_buffers();
 }
@@ -414,18 +401,9 @@ static inline void compress_next_block() {
 
 int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_compressed) {
 
-    //clock_t t;
-    //t = clock();
-
-
-    init_environment(file_input, input_size, file_compressed);
-    write_dim_varint();
+    init_environment(file_input, file_compressed);
+    write_dim_varint(input_size);
     load_next_block();
-
-/*    for (int i = 0; i < input.bytes_left; ++i) {
-        printf("%d:%X\t",i, input.beginning[i]);
-    }
-    puts("");*///TODO
     while(input_is_full()){
         compress_next_block();
         write_block_compressed();
@@ -435,10 +413,6 @@ int snappy_compress(FILE *file_input, unsigned long long input_size, FILE *file_
     }
     free_hash_table();
     free_buffers();
-
-    //t = clock() - t;
-    //time_taken =((double)t)/CLOCKS_PER_SEC;
-
 }
 
 
