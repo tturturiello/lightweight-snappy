@@ -56,6 +56,6 @@ int main() {
         printf("%X ", varint[i]);
     }
 
-    printf("\n%d", str_varint_to_dim_(varint));
+    printf("\n%d\n", str_varint_to_dim_(varint));
 
 }

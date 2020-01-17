@@ -82,9 +82,9 @@ int main(){
     char fdecompressed_name[300];
 
     for (int i = 0; i < 6; ++i) {
-        sprintf(finput_name, "..\\Files_test\\%s", file_test_name[i]);
-        sprintf(fcompressed_name, "..\\Compressed_test\\%s_snp", file_test_name[i]);
-        sprintf(fdecompressed_name, "..\\Decompressed_test\\%s_dec", file_test_name[i]);
+        sprintf(finput_name, "../Files_test/%s", file_test_name[i]);
+        sprintf(fcompressed_name, "../Compressed_test/%s_snp", file_test_name[i]);
+        sprintf(fdecompressed_name, "../Decompressed_test/%s_dec", file_test_name[i]);
 
         run_test(finput_name, fcompressed_name, fdecompressed_name);
     }
@@ -93,11 +93,11 @@ int main(){
     for (int i = 0; i < 13; ++i) {
         for (int j = 1; j <= 5; ++j) {
 
-            sprintf(finput_name, "..\\Files_test\\%ub%d", dim[i], j);
+            sprintf(finput_name, "../Files_test/%ub%d", dim[i], j);
             sprintf(fcompressed_name,
-                    "..\\Compressed_test\\%ub%d.snp", dim[i], j);
+                    "../Compressed_test/%ub%d.snp", dim[i], j);
             sprintf(fdecompressed_name,
-                    "..\\Decompressed_test\\%ub%ddec", dim[i], j);
+                    "../Decompressed_test/%ub%ddec", dim[i], j);
 
             run_test(finput_name, fcompressed_name, fdecompressed_name);
         }

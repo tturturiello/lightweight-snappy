@@ -24,5 +24,5 @@ int main(){
 
     print_tree_inorder(tree);
 
-
+    puts("");
 }
