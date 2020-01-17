@@ -179,8 +179,9 @@ static void write_dim_varint(unsigned long long input_size) {
  * Il buffer di output deve tenere conto del fatto che il risultato della compressione
  * può essere più grande dell'input. Il caso peggiore si ha quando si ha una sequenza di literal di 61 byte
  * seguito da una copia 10 di 3 byte. Ovvero si deve aggiungere un byte ogni 65 bytes. 65536 / 65 ~ 1010.
- * Infine va tenuto conto dello spazio occupato dal varint nell'output buffer del primo blocco: la dimensione
- * massima del file in compressione è 4 Gb, che occupa 5 bytes in formato varint.
+ * Inoltre va tenuto conto dello spazio occupato dal varint ad inizio file.
+ * È facilmente verificabile che con 10 byte in formato varint è possibile rappresentare tutte
+ * le dimensioni del file originale che un programma di compressione può ragionevolmnte aspettarsi
  *
  */
 static void init_buffers() {

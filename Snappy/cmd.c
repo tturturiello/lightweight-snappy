@@ -65,19 +65,15 @@ int main(int argc, char* argv[]){
         switch (opt) {
             case 'c':
                 mode = compress;
-                printf("compressione\n");
                 break;
             case 'b':
                 mode = compress_bst;
-                printf("compressione bst\n");
                 break;
             case 'd':
                 mode = uncompress;
-                printf("decompressione\n");
                 break;
             case 'r':
                 print_result = 1;
-                printf("Mostro risultati\n");
                 break;
             default:
                 usage();
@@ -90,7 +86,7 @@ int main(int argc, char* argv[]){
     open_input(input_name);
     open_output(output_name);
     unsigned long long input_size = get_size(input);
-    //TODO file larger 4GB? get_size = 0?
+
     start_time();
     if(mode == compress){
         snappy_compress(input, input_size, output);
