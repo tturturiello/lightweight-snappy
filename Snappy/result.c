@@ -16,36 +16,6 @@ void stop_time() {
     time_taken = (double) t / CLOCKS_PER_SEC;
 }
 
-void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
-    FILE *csv = open_append("..\\Risultati_test\\risultati_compressione.csv");
-    fprintf(csv, "%llu, %llu, %f, %f, %f\n",
-            finput_size,
-            fcompressed_size,
-            (double)finput_size / (double)fcompressed_size ,
-            time_taken,
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
-
-void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
-{
-    FILE *csv = open_append("..\\Risultati_test\\risultati_decompressione_1GB.csv");
-    fprintf(csv, "%llu, %llu, %f, %f\n",
-            finput_size,
-            fdecompressed_size,
-            time_taken,
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
-
-void write_result_speed(unsigned long long finput_size, unsigned long long fdecompressed_size)
-{
-    FILE *csv = open_append("..\\Risultati_test\\risultati_speed_decomp_1GB_bufMin.csv");
-    fprintf(csv, "%f\n",
-            finput_size/(time_taken * 1e6));
-    fclose(csv);
-}
-
 void print_result_compression(unsigned long long fcompressed_size, unsigned long long int finput_size) {
 
     printf("\nDimensione file originale = %llu bytes\n", finput_size);
@@ -93,3 +63,35 @@ void compare_files(char *f1_name, char *f2_name) {
 
     assert(error == 0);
 }
+
+void write_result_compression(unsigned long long finput_size, unsigned long long fcompressed_size){
+    FILE *csv = open_append("..\\Risultati_test\\risultati_compressione.csv");
+    fprintf(csv, "%llu, %llu, %f, %f, %f\n",
+            finput_size,
+            fcompressed_size,
+            (double)finput_size / (double)fcompressed_size ,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+
+void write_result_decompressione(unsigned long long finput_size, unsigned long long fdecompressed_size)
+{
+    FILE *csv = open_append("..\\Risultati_test\\risultati_decompressione_1GB.csv");
+    fprintf(csv, "%llu, %llu, %f, %f\n",
+            finput_size,
+            fdecompressed_size,
+            time_taken,
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+
+void write_result_speed(unsigned long long finput_size, unsigned long long fdecompressed_size)
+{
+    FILE *csv = open_append("..\\Risultati_test\\risultati_speed_decomp_1GB_bufMin.csv");
+    fprintf(csv, "%f\n",
+            finput_size/(time_taken * 1e6));
+    fclose(csv);
+}
+
+
