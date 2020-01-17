@@ -100,6 +100,7 @@ void write_copy(Buffer *buffer, int len, unsigned int offset);
 void write_literal(Buffer *destination, Buffer *source, unsigned int len);
 
 #endif
+/*
 int main()
 {
     FILE *source;
@@ -130,6 +131,7 @@ int main()
     print_result_decompression(get_file_size(destination), get_file_size(source));
     return 0;
 }
+*/
 
 
 int open_resources(FILE **file_in, FILE **file_out)
@@ -457,28 +459,3 @@ int snappy_decompress(FILE *file_input, FILE *file_decompressed)
     return 0;
 }
 
-void print_result_decompression(unsigned long fdecompressed_size, unsigned long fcompressed_size)
-{
-    printf("\nDimensione file compresso = %llu bytes\n", fcompressed_size);
-
-    printf("Dimensione file decompresso = %llu bytes\n", fdecompressed_size);
-
-    // double comp_ratio = (double)fcompressed_size / (double)finput_size;
-    // printf("Compression ratio = %f\n", (double)finput_size / (double)fcompressed_size );
-    // printf("Saving %f%%\n", (1 - comp_ratio)*100 );
-
-    //printf("\nDecompression took %f seconds to execute\n", time_taken);
-    // printf("%f MB/s\n", fcompressed_size/(time_taken * 1e6));
-}
-
-void write_result_decompression(unsigned long long fdecompressed_size)
-{
-    FILE *csv = fopen("..\\Standard_test\\risultati_decompressione.csv", "a");
-    assert(csv!=NULL);
-    fprintf(csv, "%llu, %llu, %f, %f\n",
-            dim_input,
-            dim_output,
-            t,
-            mbps);
-    fclose(csv);
-}

@@ -265,7 +265,6 @@ static inline void set_htable_size() {
         cmp.htable_size <<= 1; //? sempre una potenza di due
     }
     cmp.shift = 32 - log2_32(cmp.htable_size); //Shift usato dalla funzione di hash
-
 }
 
 /**

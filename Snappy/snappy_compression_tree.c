@@ -253,7 +253,6 @@ static inline u32 get_next_u32(const unsigned char *input) {
 static inline void generate_hash_index() {
     cmp.current_u32 = get_next_u32(input.current);
     cmp.current_index =  hash_bytes(cmp.current_u32);
-    number_of_u32++;//TODO togliere?
 }
 
 static inline int found_match_tree() {
