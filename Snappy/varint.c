@@ -28,15 +28,16 @@ unsigned int parse_to_varint(unsigned long long n, unsigned char *varint) {
 int varint_to_dim(FILE *source)
 {
     unsigned char mask_value = 0x7f;
-    unsigned char byte_buf;
     int multiplier = 1;
     int result = 0;
+    unsigned char byte_buf;
 
     do {
-        fread(&byte_buf, sizeof(char),1, source); // aggiorna il buffer e sposta il puntatore del al prossimo byte
+        fread(&byte_buf, sizeof(char),1, source);
         result += (((int)(byte_buf&mask_value)) * multiplier);
         multiplier *= 128; // equivale a shiftare di 7 bit
     } while ((byte_buf & MSB_mask)!=0);
+
     return result;
 }
 
